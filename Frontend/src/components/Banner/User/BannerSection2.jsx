@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import DoctorConsultation from "../../../assets/tailor/tail3.png";
-import banner2 from "../../../assets/tailor/tail4.png";
+import DoctorConsultation from "../../../assets/coffe/coffe3.png";
+import banner2 from "../../../assets/coffe/cofee1.webp";
 
 function BannerSection2() {
 
@@ -40,10 +40,10 @@ function BannerSection2() {
       <div className="absolute inset-0 bg-black opacity-50"></div>
       <div className="relative z-10 flex flex-col justify-center items-center h-full text-center">
         <h1 className="text-5xl font-bold leading-tight mb-4">
-          Welcome to CSRM
+          Welcome Back
         </h1>
         <p className="text-lg text-gray-300 mb-8">
-        Experience the finest tailoring services crafted just for you.
+        A place where you can explore and manage your orders.
         </p>
         <Link
           to="/create-order"
@@ -64,10 +64,10 @@ function BannerSection2() {
       <div className="absolute inset-0 bg-black opacity-50"></div>
       <div className="relative z-10 flex flex-col justify-center items-center h-full text-center">
         <h1 className="text-5xl font-bold leading-tight mb-4">
-        Update Your Measurements
+        Purchase the Order
         </h1>
         <p className="text-lg text-gray-300 mb-8">
-        Ensure a perfect fit with our precise measurement updates.
+        Get Track your orders and manage your orders.
         </p>
         <Link
           to="/orders"

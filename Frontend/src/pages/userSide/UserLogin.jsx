@@ -9,7 +9,7 @@ import { GoogleLogin } from "@react-oauth/google";
 import { toast } from "react-toastify";
 import Cookies from "js-cookie";
 import { set_user_basic_details } from "../../Redux/userBasicDetails/userBasicDetailsSlice";
-import patientImage from "../../assets/tailor/tail1.jpg";
+import patientImage from "../../assets/coffe/coffe3.png";
 
 function UserLogin() {
   const { state } = useLocation();
@@ -33,7 +33,7 @@ function UserLogin() {
     console.log("yep reach here\n");
     setFormError([]);
     const formData = new FormData();
-    formData.append("email", event.target.email.value);
+    formData.append("email", event.target.username.value);
     formData.append("password", event.target.password.value);
     console.log(Object.fromEntries(formData));
     console.log(formData);
@@ -134,12 +134,12 @@ function UserLogin() {
           <form className="form" method="POST" onSubmit={handleLoginSubmit}>
             <div className="mt-4">
               <label className="block text-gray-700 text-sm font-bold mb-2">
-                Email Address
+                Branch ID
               </label>
               <input
                 className="text-gray-700 border border-gray-300 rounded py-2 px-4 block w-full focus:outline-2 focus:outline-blue-700"
-                type="email"
-                id="email"
+                type="username"
+                id="username"
                 required
               />
             </div>
@@ -168,7 +168,7 @@ function UserLogin() {
             </div>
           </form>
 
-          <div className="flex px-5 justify-center w-auto py-3">
+          {/* <div className="flex px-5 justify-center w-auto py-3">
             <GoogleLogin
               onSuccess={(credentialResponse) => {
                 GoogleTestlogin(credentialResponse.credential);
@@ -177,7 +177,7 @@ function UserLogin() {
                 console.log("Login Failed");
               }}
             />
-          </div>
+          </div> */}
 
           <div className="mt-4 flex items-center w-full text-center">
             <a
@@ -193,7 +193,7 @@ function UserLogin() {
         </div>
       </div>
 
-      <div className="w-full h-40 flex items-center justify-center cursor-pointer">
+      {/* <div className="w-full h-40 flex items-center justify-center cursor-pointer">
         <div className="relative inline-flex items-center justify-start py-3 pl-4 pr-12 overflow-hidden font-semibold shadow text-indigo-600 transition-all duration-150 ease-in-out rounded hover:pl-10 hover:pr-6 bg-gray-50 dark:bg-gray-700 dark:text-white dark:hover:text-gray-200 dark:shadow-none group">
           <span className="absolute bottom-0 left-0 w-full h-1 transition-all duration-150 ease-in-out bg-indigo-600 group-hover:h-full" />
           <span className="absolute right-0 pr-4 duration-200 ease-out group-hover:translate-x-12">
@@ -234,7 +234,7 @@ function UserLogin() {
             </span>
           </Link>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

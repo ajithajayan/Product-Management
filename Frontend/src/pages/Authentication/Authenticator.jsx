@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import BIRDS from "vanta/dist/vanta.waves.min";
+import BIRDS from "vanta/dist/vanta.birds.min";
 import * as THREE from "three";
 import "../../assets/Styles/auth.scss";
 import { Route, Routes } from "react-router-dom";
@@ -22,12 +22,11 @@ const Authenticator = () => {
           mouseControls: true,
           touchControls: true,
           gyroControls: false,
-          minHeight: 200.0,
-          minWidth: 200.0,
-          scale: 1.0,
-          scaleMobile: 1.0,
-          color: 0x10384f,
-          waveSpeed: 1.3,
+          minHeight: 200.00,
+          minWidth: 200.00,
+          scale: 1.00,
+          scaleMobile: 1.00,
+          wingSpan: 25.00
         })
       );
     }
