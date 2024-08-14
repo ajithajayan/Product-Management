@@ -39,7 +39,7 @@ class BrandDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 # Product Views
 class ProductListCreateView(generics.ListCreateAPIView):
-    queryset = Product.objects.select_related('brand', 'category', 'supplier').all()
+    queryset = Product.objects.select_related('brand', 'category').all()
     serializer_class = ProductSerializer
 
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):

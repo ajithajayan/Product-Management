@@ -1,58 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import Select from 'react-select';
-import { baseUrl } from '../../utils/constants/Constants';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import Select from "react-select";
+import { baseUrl } from "../../utils/constants/Constants";
 
 const ProductEditForm = ({ product, fetchProducts, setShowModal }) => {
-  const [productCode, setProductCode] = useState('');
-  const [name, setName] = useState('');
-  const [purchaseDate, setPurchaseDate] = useState('');
-  const [quantity, setQuantity] = useState(0);
-  const [expiryDate, setExpiryDate] = useState('');
-  const [manufacturingDate, setManufacturingDate] = useState('');
-  const [openingStock, setOpeningStock] = useState(0);
+  const [productCode, setProductCode] = useState("");
+  const [name, setName] = useState("");
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [selectedUnit, setSelectedUnit] = useState({ label: "Pieces", value: "pieces" });
+
   const [brands, setBrands] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
 
   useEffect(() => {
     fetchBrands();
     fetchCategories();
-    fetchSuppliers();
 
     if (product) {
       // Prefill form fields with product data
       setProductCode(product.product_code);
       setName(product.name);
-      setPurchaseDate(product.purchase_date);
-      setQuantity(product.quantity);
-      setExpiryDate(product.expiry_date);
-      setManufacturingDate(product.manufacturing_date);
-      setOpeningStock(product.opening_stock);
-
-      // Manually trigger state updates for Select components
       setSelectedBrand({ label: product.brand_name, value: product.brand });
       setSelectedCategory({ label: product.category_name, value: product.category });
-      setSelectedSupplier({ label: product.supplier_name, value: product.supplier });
+      setSelectedUnit({ label: product.unit_type, value: product.unit_type });
     }
   }, [product]);
 
   const fetchBrands = async () => {
-    const response = await axios.get(baseUrl + 'store/brands/');
-    setBrands(response.data.results.map(brand => ({ label: brand.name, value: brand.id })));
+    const response = await axios.get(baseUrl + "store/brands/");
+    setBrands(response.data.results.map((brand) => ({ label: brand.name, value: brand.id })));
   };
 
   const fetchCategories = async () => {
-    const response = await axios.get(baseUrl + 'store/categories/');
-    setCategories(response.data.results.map(category => ({ label: category.name, value: category.id })));
-  };
-
-  const fetchSuppliers = async () => {
-    const response = await axios.get(baseUrl + 'store/suppliers/');
-    setSuppliers(response.data.results.map(supplier => ({ label: supplier.name, value: supplier.id })));
+    const response = await axios.get(baseUrl + "store/categories/");
+    setCategories(response.data.results.map((category) => ({ label: category.name, value: category.id })));
   };
 
   const handleSubmit = async (e) => {
@@ -62,17 +44,10 @@ const ProductEditForm = ({ product, fetchProducts, setShowModal }) => {
     const productData = {
       product_code: productCode,
       name,
-      purchase_date: purchaseDate,
-      quantity,
-      expiry_date: expiryDate,
-      manufacturing_date: manufacturingDate,
-      opening_stock: openingStock,
       brand: selectedBrand?.value,
       category: selectedCategory?.value,
-      supplier: selectedSupplier?.value,
+      unit_type: selectedUnit.value,
     };
-
-    console.log('Submitting product data:', productData); // Debugging line
 
     try {
       // Update existing product
@@ -80,7 +55,7 @@ const ProductEditForm = ({ product, fetchProducts, setShowModal }) => {
       fetchProducts(); // Refresh the product list
       setShowModal(false); // Close the modal
     } catch (error) {
-      console.error('Error updating product:', error.response?.data || error.message); // Improved error logging
+      console.error("Error updating product:", error);
     }
   };
 
@@ -121,53 +96,19 @@ const ProductEditForm = ({ product, fetchProducts, setShowModal }) => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Purchase Date</label>
-                <input
-                  type="date"
-                  value={purchaseDate}
-                  onChange={(e) => setPurchaseDate(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Quantity</label>
-                <input
-                  type="number"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Expiry Date</label>
-                <input
-                  type="date"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Manufacturing Date</label>
-                <input
-                  type="date"
-                  value={manufacturingDate}
-                  onChange={(e) => setManufacturingDate(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Opening Stock</label>
-                <input
-                  type="number"
-                  value={openingStock}
-                  onChange={(e) => setOpeningStock(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  readOnly
+                <label className="block text-sm font-medium text-gray-700">Unit</label>
+                <Select
+                  value={selectedUnit}
+                  onChange={setSelectedUnit}
+                  options={[
+                    { label: "Pieces", value: "pieces" },
+                    { label: "Kilograms", value: "kilograms" },
+                    { label: "Liters", value: "liters" },
+                    { label: "Meters", value: "meters" },
+                    { label: "Pounds", value: "pounds" },
+                  ]}
+                  className="mt-1 block w-full"
+                  isSearchable
                 />
               </div>
               <div>
@@ -186,16 +127,6 @@ const ProductEditForm = ({ product, fetchProducts, setShowModal }) => {
                   value={selectedCategory}
                   onChange={setSelectedCategory}
                   options={categories}
-                  className="mt-1 block w-full"
-                  isSearchable
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Supplier</label>
-                <Select
-                  value={selectedSupplier}
-                  onChange={setSelectedSupplier}
-                  options={suppliers}
                   className="mt-1 block w-full"
                   isSearchable
                 />

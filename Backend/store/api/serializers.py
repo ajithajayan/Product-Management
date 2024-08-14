@@ -23,10 +23,8 @@ class BrandSerializer(serializers.ModelSerializer):
         model = Brand
         fields = '__all__'
 
-# Product Serializer
 class ProductSerializer(serializers.ModelSerializer):
     # Add fields to get the name of the related objects
-    supplier_name = serializers.CharField(source='supplier.name', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     brand_name = serializers.CharField(source='brand.name', read_only=True)
 
@@ -34,9 +32,8 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = '__all__'
         extra_kwargs = {
-            'barcode': {'read_only': True},
-            'product_code': {'required': False, 'allow_blank': True},
-            'supplier': {'write_only': True},  # Keep supplier ID write-only
+            'barcode': {'read_only': True},  # Barcode is read-only since it's generated automatically
+            'product_code': {'required': False, 'allow_blank': True},  # Product code is optional
             'category': {'write_only': True},  # Keep category ID write-only
             'brand': {'write_only': True},     # Keep brand ID write-only
         }
@@ -50,7 +47,7 @@ class ProductSerializer(serializers.ModelSerializer):
             else:
                 validated_data['product_code'] = 'P5001'  # Start from P5001 if no products exist
         return super().create(validated_data)
-
+    
 # Branch Serializer
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:

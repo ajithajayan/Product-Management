@@ -44,7 +44,6 @@ class Brand(models.Model):
 # Product Model
 class Product(models.Model):
     name = models.CharField(max_length=255)
-    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='products')
     unit_type = models.CharField(max_length=100, default='pieces')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='products')
