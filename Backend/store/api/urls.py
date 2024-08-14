@@ -1,14 +1,11 @@
 from django.urls import path
 from .views import (
-    ProductCodeSearchView, SupplierListCreateView, SupplierDetailView,
+    SupplierListCreateView, SupplierDetailView,
     CategoryListCreateView, CategoryDetailView,
     BrandListCreateView, BrandDetailView,
-    ProductListCreateView, ProductDetailView,
+    ProductListCreateView, ProductDetailView, GetTotalStockView, ProductCodeSearchView,
     BranchListCreateView, BranchDetailView,
-    ProductInTransactionListCreateView, ProductInTransactionDetailView,
-    ProductOutTransactionListCreateView, ProductOutTransactionDetailView,
-    PurchaseRequestListCreateView, PurchaseRequestDetailView,
-    DamageProductTransactionListCreateView, DamageProductTransactionDetailView,GetTotalStockView
+    ProductInTransactionListCreateView, ProductInTransactionDetailView
 )
 
 urlpatterns = [
@@ -37,16 +34,4 @@ urlpatterns = [
     # Product In Transaction URLs
     path('product-in-transactions/', ProductInTransactionListCreateView.as_view(), name='product-in-transaction-list-create'),
     path('product-in-transactions/<int:pk>/', ProductInTransactionDetailView.as_view(), name='product-in-transaction-detail'),
-
-    # Product Out Transaction URLs
-    path('product-out-transactions/', ProductOutTransactionListCreateView.as_view(), name='product-out-transaction-list-create'),
-    path('product-out-transactions/<int:pk>/', ProductOutTransactionDetailView.as_view(), name='product-out-transaction-detail'),
-
-    # Purchase Request URLs
-    path('purchase-requests/', PurchaseRequestListCreateView.as_view(), name='purchase-request-list-create'),
-    path('purchase-requests/<int:pk>/', PurchaseRequestDetailView.as_view(), name='purchase-request-detail'),
-
-    # Damage Product Transaction URLs
-    path('damage-product-transactions/', DamageProductTransactionListCreateView.as_view(), name='damage-product-transaction-list-create'),
-    path('damage-product-transactions/<int:pk>/', DamageProductTransactionDetailView.as_view(), name='damage-product-transaction-detail'),
 ]

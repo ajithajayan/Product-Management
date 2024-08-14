@@ -1,10 +1,7 @@
 from rest_framework import serializers
 from store.models import (
     Supplier, Category, Brand, Product, Branch,
-    ProductInTransaction, ProductInTransactionDetail,
-    ProductOutTransaction, ProductOutTransactionDetail,
-    PurchaseRequest, PurchaseRequestDetail,
-    DamageProductTransaction, DamageProductTransactionDetail
+    ProductInTransaction, ProductInTransactionDetail,TotalStock
 )
 from django.utils.crypto import get_random_string
 
@@ -54,8 +51,6 @@ class ProductSerializer(serializers.ModelSerializer):
                 validated_data['product_code'] = 'P5001'  # Start from P5001 if no products exist
         return super().create(validated_data)
 
-
-
 # Branch Serializer
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:
@@ -64,84 +59,58 @@ class BranchSerializer(serializers.ModelSerializer):
 
 # Product In Transaction Detail Serializer
 class ProductInTransactionDetailSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+
     class Meta:
         model = ProductInTransactionDetail
         fields = '__all__'
 
 # Product In Transaction Serializer
 class ProductInTransactionSerializer(serializers.ModelSerializer):
-    details = ProductInTransactionDetailSerializer(many=True)
+    transaction_details = ProductInTransactionDetailSerializer(many=True, write_only=True)
 
     class Meta:
         model = ProductInTransaction
         fields = '__all__'
 
     def create(self, validated_data):
-        details_data = validated_data.pop('details')
+        details_data = validated_data.pop('transaction_details')
         transaction = ProductInTransaction.objects.create(**validated_data)
+        
         for detail_data in details_data:
             ProductInTransactionDetail.objects.create(transaction=transaction, **detail_data)
+            # Update total stock for each product in the transaction
+            product_total_stock, created = TotalStock.objects.get_or_create(product=detail_data['product'])
+            product_total_stock.total_quantity += detail_data['quantity']
+            product_total_stock.save()
+
         return transaction
 
-# Product Out Transaction Detail Serializer
-class ProductOutTransactionDetailSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductOutTransactionDetail
-        fields = '__all__'
+    def update(self, instance, validated_data):
+        details_data = validated_data.pop('transaction_details')
+        instance.supplier = validated_data.get('supplier', instance.supplier)
+        instance.purchase_date = validated_data.get('purchase_date', instance.purchase_date)
+        instance.supplier_invoice_number = validated_data.get('supplier_invoice_number', instance.supplier_invoice_number)
+        instance.supplier_date = validated_data.get('supplier_date', instance.supplier_date)
+        instance.remarks = validated_data.get('remarks', instance.remarks)
+        instance.save()
 
-# Product Out Transaction Serializer
-class ProductOutTransactionSerializer(serializers.ModelSerializer):
-    details = ProductOutTransactionDetailSerializer(many=True)
-
-    class Meta:
-        model = ProductOutTransaction
-        fields = '__all__'
-
-    def create(self, validated_data):
-        details_data = validated_data.pop('details')
-        transaction = ProductOutTransaction.objects.create(**validated_data)
+        # Handle updating transaction details
         for detail_data in details_data:
-            ProductOutTransactionDetail.objects.create(transaction=transaction, **detail_data)
-        return transaction
+            detail_id = detail_data.get('id')
+            if detail_id:
+                detail_instance = ProductInTransactionDetail.objects.get(id=detail_id, transaction=instance)
+                detail_instance.product = detail_data.get('product', detail_instance.product)
+                detail_instance.manufacturing_date = detail_data.get('manufacturing_date', detail_instance.manufacturing_date)
+                detail_instance.expiry_date = detail_data.get('expiry_date', detail_instance.expiry_date)
+                detail_instance.quantity = detail_data.get('quantity', detail_instance.quantity)
+                detail_instance.total = detail_data.get('total', detail_instance.total)
+                detail_instance.save()
+            else:
+                ProductInTransactionDetail.objects.create(transaction=instance, **detail_data)
+                # Update stock for the new details
+                product_total_stock, created = TotalStock.objects.get_or_create(product=detail_data['product'])
+                product_total_stock.total_quantity += detail_data['quantity']
+                product_total_stock.save()
 
-# Purchase Request Detail Serializer
-class PurchaseRequestDetailSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PurchaseRequestDetail
-        fields = '__all__'
-
-# Purchase Request Serializer
-class PurchaseRequestSerializer(serializers.ModelSerializer):
-    details = PurchaseRequestDetailSerializer(many=True)
-
-    class Meta:
-        model = PurchaseRequest
-        fields = '__all__'
-
-    def create(self, validated_data):
-        details_data = validated_data.pop('details')
-        request = PurchaseRequest.objects.create(**validated_data)
-        for detail_data in details_data:
-            PurchaseRequestDetail.objects.create(request=request, **detail_data)
-        return request
-
-# Damage Product Transaction Detail Serializer
-class DamageProductTransactionDetailSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DamageProductTransactionDetail
-        fields = '__all__'
-
-# Damage Product Transaction Serializer
-class DamageProductTransactionSerializer(serializers.ModelSerializer):
-    details = DamageProductTransactionDetailSerializer(many=True)
-
-    class Meta:
-        model = DamageProductTransaction
-        fields = '__all__'
-
-    def create(self, validated_data):
-        details_data = validated_data.pop('details')
-        transaction = DamageProductTransaction.objects.create(**validated_data)
-        for detail_data in details_data:
-            DamageProductTransactionDetail.objects.create(transaction=transaction, **detail_data)
-        return transaction
+        return instance

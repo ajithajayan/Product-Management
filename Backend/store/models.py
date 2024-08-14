@@ -13,6 +13,7 @@ from django.utils.crypto import get_random_string
 import barcode
 from barcode.writer import ImageWriter
 from io import BytesIO
+from django.utils import timezone
 
 # Supplier model
 class Supplier(models.Model):
@@ -40,19 +41,15 @@ class Brand(models.Model):
 
 
 
+# Product Model
 class Product(models.Model):
     name = models.CharField(max_length=255)
-    purchase_date = models.DateField()
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='products')
     unit_type = models.CharField(max_length=100, default='pieces')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='products')
-    expiry_date = models.DateField()
-    quantity = models.PositiveIntegerField(validators=[MinValueValidator(0)])
-    manufacturing_date = models.DateField()
     product_code = models.CharField(max_length=100, blank=True, null=True)  # Allow null and blank
     barcode = models.CharField(max_length=100, unique=True, blank=True, null=True)
-    opening_stock = models.PositiveIntegerField(default=0)
 
     def save(self, *args, **kwargs):
         # Generate a product code if not provided
@@ -76,30 +73,51 @@ class Product(models.Model):
             if not Product.objects.filter(barcode=barcode_number).exists():
                 return barcode_number
 
+    def __str__(self):
+        return self.name
 
+# ProductInTransaction Model
+class ProductInTransaction(models.Model):
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
+    purchase_date = models.DateField(default=timezone.now)
+    supplier_invoice_number = models.CharField(max_length=100)
+    supplier_date = models.DateField()  # Date provided by the supplier
+    remarks = models.TextField(blank=True, null=True)  # Remarks or comments about the transaction
+
+    def save(self, *args, **kwargs):
+        super(ProductInTransaction, self).save(*args, **kwargs)
+        # Update stock for all products after the transaction is saved
+        for detail in self.transaction_details.all():
+            product_total_stock, created = TotalStock.objects.get_or_create(product=detail.product)
+            product_total_stock.total_quantity += detail.quantity
+            product_total_stock.save()
+
+    def __str__(self):
+        return f"Transaction {self.id} - {self.supplier.name} on {self.purchase_date}"
+
+# ProductInTransactionDetail Model
+class ProductInTransactionDetail(models.Model):
+    transaction = models.ForeignKey(ProductInTransaction, on_delete=models.CASCADE, related_name='transaction_details')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    manufacturing_date = models.DateField()
+    expiry_date = models.DateField()
+    quantity = models.PositiveIntegerField()
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def save(self, *args, **kwargs):
+        # We won't update the stock here; it will be done after the entire transaction is saved.
+        super(ProductInTransactionDetail, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.product.name} - {self.quantity} units"
+
+# TotalStock Model
 class TotalStock(models.Model):
-    product_code = models.CharField(max_length=100, unique=True)
+    product = models.OneToOneField(Product, on_delete=models.CASCADE)
     total_quantity = models.PositiveIntegerField(default=0)
 
     def __str__(self):
-        return f"{self.product_code}: {self.total_quantity}"
-
-@receiver(pre_save, sender=Product)
-def set_opening_stock(sender, instance, **kwargs):
-    if not instance._state.adding and instance.product_code:
-        existing_total = TotalStock.objects.filter(product_code=instance.product_code).first()
-        if existing_total:
-            instance.opening_stock = existing_total.total_quantity
-
-@receiver(post_save, sender=Product)
-def update_total_stock(sender, instance, created, **kwargs):
-    total_stock, _ = TotalStock.objects.get_or_create(product_code=instance.product_code)
-    if created:
-        total_stock.total_quantity += instance.quantity
-    else:
-        # Recalculate total stock to handle manual edits to quantity
-        total_stock.total_quantity = Product.objects.filter(product_code=instance.product_code).aggregate(total=models.Sum('quantity'))['total'] or 0
-    total_stock.save()
+        return f"{self.product.name}: {self.total_quantity} units"
 
 
 # Branch model
@@ -124,58 +142,6 @@ class Branch(models.Model):
     def __str__(self):
         return self.name
 
-# Inventory Transaction models
-class ProductInTransaction(models.Model):
-    date = models.DateField()
-    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='in_transactions')
-    supplier_invoice_number = models.CharField(max_length=100, unique=True)
-    total_qty_amount = models.PositiveIntegerField(validators=[MinValueValidator(1)])
 
-class ProductInTransactionDetail(models.Model):
-    transaction = models.ForeignKey(ProductInTransaction, on_delete=models.CASCADE, related_name='details')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='in_transaction_details')
-    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    total = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    remarks = models.TextField(blank=True, null=True)
-
-class ProductOutTransaction(models.Model):
-    date = models.DateField()
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='out_transactions')
-    branch_incharge = models.CharField(max_length=255)
-    supplier_invoice_number = models.CharField(max_length=100, unique=True)
-    total_qty_amount = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-
-class ProductOutTransactionDetail(models.Model):
-    transaction = models.ForeignKey(ProductOutTransaction, on_delete=models.CASCADE, related_name='details')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='out_transaction_details')
-    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    total = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    remarks = models.TextField(blank=True, null=True)
-
-class PurchaseRequest(models.Model):
-    date = models.DateField()
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='purchase_requests')
-    order_form_number = models.CharField(max_length=100, unique=True)
-    branch_incharge = models.CharField(max_length=255)
-    total_qty_amount = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-
-class PurchaseRequestDetail(models.Model):
-    request = models.ForeignKey(PurchaseRequest, on_delete=models.CASCADE, related_name='details')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='purchase_request_details')
-    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    total = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    remarks = models.TextField(blank=True, null=True)
-
-class DamageProductTransaction(models.Model):
-    date = models.DateField()
-    damage_transfer_number = models.CharField(max_length=100, unique=True)
-    total_qty_amount = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-
-class DamageProductTransactionDetail(models.Model):
-    transaction = models.ForeignKey(DamageProductTransaction, on_delete=models.CASCADE, related_name='details')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='damage_transaction_details')
-    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    total = models.PositiveIntegerField(validators=[MinValueValidator(1)])
-    remarks = models.TextField(blank=True, null=True)
  
 
