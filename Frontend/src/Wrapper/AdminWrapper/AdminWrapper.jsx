@@ -24,13 +24,13 @@ function AdminWrapper() {
     },
     {
       element: (
-        <AdminPrivateRoute>
+        // <AdminPrivateRoute>
           <ThemeProvider>
             <DashboardLayout>
               <Outlet />
             </DashboardLayout>
           </ThemeProvider>
-        </AdminPrivateRoute>
+        // </AdminPrivateRoute>
       ),
       children: [
         { path: "/", element: <Dashboard /> },
