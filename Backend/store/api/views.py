@@ -2,18 +2,13 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from store.models import (
     Supplier, Category, Brand, Product, Branch,
-    ProductInTransaction, ProductOutTransaction,
-    PurchaseRequest, DamageProductTransaction
+    ProductInTransaction, ProductInTransactionDetail, TotalStock
 )
 from .serializers import (
     SupplierSerializer, CategorySerializer, BrandSerializer, ProductSerializer, BranchSerializer,
-    ProductInTransactionSerializer, ProductOutTransactionSerializer,
-    PurchaseRequestSerializer, DamageProductTransactionSerializer
+    ProductInTransactionSerializer
 )
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from store.models import TotalStock
 
 # Supplier Views
 class SupplierListCreateView(generics.ListCreateAPIView):
@@ -47,34 +42,32 @@ class ProductListCreateView(generics.ListCreateAPIView):
     queryset = Product.objects.select_related('brand', 'category', 'supplier').all()
     serializer_class = ProductSerializer
 
-    def perform_create(self, serializer):
-        # This method is called when a new product is being created
-        serializer.save()
-        # Any additional business logic can be added here, if needed
-
 class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
-    def perform_update(self, serializer):
-        # Automatically called when an instance is being updated
-        serializer.save()
-        # If you need to recalculate stocks or perform other actions post-update, do it here
-
     def perform_destroy(self, instance):
-        # Handle any cleanup or stock adjustments before deleting a product
-        instance.delete()  # Delete the product
-        # Potentially update TotalStock here if needed
+        # Decrease stock from TotalStock when a product is deleted, if necessary
+        try:
+            total_stock = TotalStock.objects.get(product=instance)
+            total_stock.total_quantity = 0
+            total_stock.save()
+        except TotalStock.DoesNotExist:
+            pass
+        
+        instance.delete()
 
-# To get the total stock  of the product
+# Get total stock of a product
 class GetTotalStockView(APIView):
     def get(self, request, product_code, format=None):
         try:
-            total_stock = TotalStock.objects.get(product_code=product_code)
+            product = Product.objects.get(product_code=product_code)
+            total_stock = TotalStock.objects.get(product=product)
             return Response({'total_stock': total_stock.total_quantity}, status=status.HTTP_200_OK)
-        except TotalStock.DoesNotExist:
-            return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+        except (Product.DoesNotExist, TotalStock.DoesNotExist):
+            return Response({'error': 'Product not found or stock not available'}, status=status.HTTP_404_NOT_FOUND)
 
+# Search product codes
 class ProductCodeSearchView(APIView):
     def get(self, request, format=None):
         query = request.GET.get('query', '')
@@ -103,29 +96,11 @@ class ProductInTransactionDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = ProductInTransaction.objects.all()
     serializer_class = ProductInTransactionSerializer
 
-# Product Out Transaction Views
-class ProductOutTransactionListCreateView(generics.ListCreateAPIView):
-    queryset = ProductOutTransaction.objects.all()
-    serializer_class = ProductOutTransactionSerializer
-
-class ProductOutTransactionDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = ProductOutTransaction.objects.all()
-    serializer_class = ProductOutTransactionSerializer
-
-# Purchase Request Views
-class PurchaseRequestListCreateView(generics.ListCreateAPIView):
-    queryset = PurchaseRequest.objects.all()
-    serializer_class = PurchaseRequestSerializer
-
-class PurchaseRequestDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = PurchaseRequest.objects.all()
-    serializer_class = PurchaseRequestSerializer
-
-# Damage Product Transaction Views
-class DamageProductTransactionListCreateView(generics.ListCreateAPIView):
-    queryset = DamageProductTransaction.objects.all()
-    serializer_class = DamageProductTransactionSerializer
-
-class DamageProductTransactionDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = DamageProductTransaction.objects.all()
-    serializer_class = DamageProductTransactionSerializer
+    def perform_destroy(self, instance):
+        # Decrease stock from TotalStock when a transaction is deleted
+        for detail in instance.transaction_details.all():
+            product_total_stock = TotalStock.objects.get(product=detail.product)
+            product_total_stock.total_quantity -= detail.quantity
+            product_total_stock.save()
+        
+        instance.delete()
