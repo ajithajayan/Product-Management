@@ -1,184 +1,226 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import AsyncSelect from "react-select/async";
+import Swal from "sweetalert2";
 import { baseUrl } from "../../utils/constants/Constants";
 import ProductModal from "./ProductModal";
-import Swal from "sweetalert2";
 
 const TransactionForm = () => {
   const [transactionDetails, setTransactionDetails] = useState({
     purchaseDate: "",
-    supplierName: "",
+    supplier: null,
     supplierDate: "",
     supplierInvoice: "",
+    products: [],
+    remarks: "",
   });
 
-  const [products, setProducts] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [totalQuantity, setTotalQuantity] = useState(0);
-  const [remarks, setRemarks] = useState("");
 
-  const handleTransactionDetailChange = (e) => {
-    const { name, value } = e.target;
-    setTransactionDetails({ ...transactionDetails, [name]: value });
+  useEffect(() => {
+    calculateTotalQuantity();
+  }, [transactionDetails.products]);
+
+  const handleSupplierChange = (selectedOption) => {
+    setTransactionDetails({ ...transactionDetails, supplier: selectedOption });
   };
 
-  const addProduct = (product) => {
-    setProducts([...products, { ...product, serialNumber: products.length + 1 }]);
-    setTotalQuantity(totalQuantity + product.quantity);
+  const loadSupplierOptions = async (inputValue) => {
+    const response = await axios.get(`${baseUrl}store/suppliers/?search=${inputValue}`);
+    return response.data.results.map((supplier) => ({
+      label: supplier.name,
+      value: supplier.id,
+    }));
   };
 
-  const clearProducts = () => {
-    setProducts([]);
+  const handleInputChange = (newValue) => {
+    return newValue.replace(/\W/g, '');
+  };
+
+  const handleAddProduct = (product) => {
+    setTransactionDetails({
+      ...transactionDetails,
+      products: [...transactionDetails.products, product],
+    });
+    setShowModal(false);
+  };
+
+  const calculateTotalQuantity = () => {
+    const total = transactionDetails.products.reduce((sum, product) => sum + product.quantity, 0);
+    setTotalQuantity(total);
+  };
+
+  const calculateTotal = (product) => {
+    const pricePerUnit = product.price || 10; // Replace 10 with the actual price per unit if available
+    return product.quantity * pricePerUnit;
+  };
+
+  const handleClearProducts = () => {
+    setTransactionDetails({ ...transactionDetails, products: [] });
     setTotalQuantity(0);
   };
 
-  const saveTransaction = async () => {
-    try {
-      const response = await axios.post(`${baseUrl}store/transactions/`, {
-        ...transactionDetails,
-        products,
-        remarks,
-      });
-      Swal.fire("Success", "Transaction saved successfully!", "success");
-    } catch (error) {
-      console.error("Error saving transaction:", error);
-      Swal.fire("Error", "Failed to save the transaction.", "error");
-    }
-  };
+  const handleSubmit = async () => {
+    const transformedData = {
+        purchase_date: transactionDetails.purchaseDate,
+        supplier: transactionDetails.supplier?.value || null,
+        supplier_date: transactionDetails.supplierDate,
+        supplier_invoice_number: transactionDetails.supplierInvoice,
+        transaction_details: transactionDetails.products.map((product) => ({
+            product: product.id, // Ensure this is the product ID (pk)
+            manufacturing_date: product.manufacturingDate,
+            expiry_date: product.expiryDate,
+            quantity: product.quantity,
+            total: calculateTotal(product), // Ensure total is included
+        })),
+        remarks: transactionDetails.remarks,
+    };
 
-  const handlePrint = () => {
-    // Implement print functionality here
-    window.print();
-  };
+    try {
+        await axios.post(`${baseUrl}store/product-in-transactions/`, transformedData);
+        Swal.fire("Success", "Transaction saved successfully", "success");
+        handleClearProducts(); // Clear form after submission
+    } catch (error) {
+        console.error("Error saving transaction:", error);
+        Swal.fire("Error", "Failed to save the transaction", "error");
+    }
+};
+
 
   return (
     <div className="container mx-auto p-6">
-      <div className="bg-white shadow-md rounded p-6">
-        <h2 className="text-2xl font-bold mb-6">Transaction Form</h2>
-        
-        {/* Transaction Details Inputs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Purchase Date</label>
           <input
             type="date"
-            name="purchaseDate"
             value={transactionDetails.purchaseDate}
-            onChange={handleTransactionDetailChange}
-            placeholder="Purchase Date"
-            className="border rounded p-2 w-full"
+            onChange={(e) => setTransactionDetails({ ...transactionDetails, purchaseDate: e.target.value })}
+            placeholder="Select Purchase Date"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
-          <input
-            type="text"
-            name="supplierName"
-            value={transactionDetails.supplierName}
-            onChange={handleTransactionDetailChange}
-            placeholder="Supplier Name"
-            className="border rounded p-2 w-full"
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Supplier Name</label>
+          <AsyncSelect
+            cacheOptions
+            loadOptions={loadSupplierOptions}
+            onInputChange={handleInputChange}
+            onChange={handleSupplierChange}
+            isClearable
+            placeholder="Search Supplier"
+            className="mt-1 block w-full"
+            defaultOptions
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Supplier Date</label>
           <input
             type="date"
-            name="supplierDate"
             value={transactionDetails.supplierDate}
-            onChange={handleTransactionDetailChange}
-            placeholder="Supplier Date"
-            className="border rounded p-2 w-full"
+            onChange={(e) => setTransactionDetails({ ...transactionDetails, supplierDate: e.target.value })}
+            placeholder="Select Supplier Date"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Supplier Invoice Number</label>
           <input
             type="text"
-            name="supplierInvoice"
             value={transactionDetails.supplierInvoice}
-            onChange={handleTransactionDetailChange}
-            placeholder="Supplier Invoice"
-            className="border rounded p-2 w-full"
+            onChange={(e) => setTransactionDetails({ ...transactionDetails, supplierInvoice: e.target.value })}
+            placeholder="Enter Supplier Invoice Number"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
         </div>
+      </div>
 
-        {/* Add Product Button */}
-        <div className="mt-4">
-          <button
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            onClick={() => setShowModal(true)}
-          >
-            Add Product
-          </button>
-        </div>
+      <div className="mt-6">
+        <button
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          onClick={() => setShowModal(true)}
+        >
+          Add Product
+        </button>
+      </div>
 
-        {/* Product List Table */}
-        <div className="overflow-x-auto mt-4">
-          <table className="min-w-full bg-white shadow-md rounded">
-            <thead className="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
-              <tr>
-                <th className="py-3 px-6 text-left">Serial Number</th>
-                <th className="py-3 px-6 text-left">Product Code</th>
-                <th className="py-3 px-6 text-left">Name</th>
-                <th className="py-3 px-6 text-left">Barcode</th>
-                <th className="py-3 px-6 text-left">Brand</th>
-                <th className="py-3 px-6 text-left">Manufacturing Date</th>
-                <th className="py-3 px-6 text-left">Expiry Date</th>
-                <th className="py-3 px-6 text-left">Quantity</th>
-                <th className="py-3 px-6 text-left">Total</th>
-              </tr>
-            </thead>
-            <tbody className="text-gray-600 text-sm">
-              {products.map((product) => (
-                <tr key={product.serialNumber}>
-                  <td className="py-3 px-6 text-left">{product.serialNumber}</td>
-                  <td className="py-3 px-6 text-left">{product.product_code}</td>
-                  <td className="py-3 px-6 text-left">{product.name}</td>
-                  <td className="py-3 px-6 text-left">{product.barcode}</td>
-                  <td className="py-3 px-6 text-left">{product.brand_name}</td>
-                  <td className="py-3 px-6 text-left">{product.manufacturing_date}</td>
-                  <td className="py-3 px-6 text-left">{product.expiry_date}</td>
-                  <td className="py-3 px-6 text-left">{product.quantity}</td>
-                  <td className="py-3 px-6 text-left">{product.total}</td>
+      <div className="mt-6">
+        {transactionDetails.products.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white shadow-md rounded">
+              <thead className="bg-gray-200 text-gray-600 uppercase text-sm leading-normal">
+                <tr>
+                  <th className="py-3 px-6 text-left">#</th>
+                  <th className="py-3 px-6 text-left">Product Code</th>
+                  <th className="py-3 px-6 text-left">Name</th>
+                  <th className="py-3 px-6 text-left">Brand</th>
+                  <th className="py-3 px-6 text-left">Category</th>
+                  <th className="py-3 px-6 text-left">Barcode</th>
+                  <th className="py-3 px-6 text-left">Manufacturing Date</th>
+                  <th className="py-3 px-6 text-left">Expiry Date</th>
+                  <th className="py-3 px-6 text-left">Quantity</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Remarks and Total Quantity */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <textarea
-            name="remarks"
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-            placeholder="Remarks"
-            className="border rounded p-2 w-full"
-          />
-          <div className="text-right">
-            <label>Total Quantity: {totalQuantity}</label>
+              </thead>
+              <tbody className="text-gray-600 text-sm">
+                {transactionDetails.products.map((product, index) => (
+                  <tr key={index} className="border-b border-gray-200 hover:bg-gray-100">
+                    <td className="py-3 px-6 text-left">{index + 1}</td>
+                    <td className="py-3 px-6 text-left">{product.productCode}</td>
+                    <td className="py-3 px-6 text-left">{product.name}</td>
+                    <td className="py-3 px-6 text-left">{product.brandName}</td>
+                    <td className="py-3 px-6 text-left">{product.categoryName}</td>
+                    <td className="py-3 px-6 text-left">{product.barcode}</td>
+                    <td className="py-3 px-6 text-left">{product.manufacturingDate}</td>
+                    <td className="py-3 px-6 text-left">{product.expiryDate}</td>
+                    <td className="py-3 px-6 text-left">{product.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            No products added. Click "Add Product" to start.
+          </div>
+        )}
 
-        {/* Action Buttons */}
-        <div className="mt-4 flex justify-between">
-          <button
-            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-            onClick={saveTransaction}
-          >
-            Save Transaction
-          </button>
-          <button
-            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-            onClick={handlePrint}
-          >
-            Print
-          </button>
-          <button
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            onClick={clearProducts}
-          >
-            Clear Products
-          </button>
+        {/* Total Quantity */}
+        <div className="mt-4 bg-gray-200 p-4 rounded text-right">
+          <strong>Total Quantity:</strong> {totalQuantity}
         </div>
+      </div>
+
+      <div className="mt-6">
+        <label className="block text-sm font-medium text-gray-700">Remarks</label>
+        <textarea
+          value={transactionDetails.remarks}
+          onChange={(e) => setTransactionDetails({ ...transactionDetails, remarks: e.target.value })}
+          placeholder="Enter any remarks..."
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        />
+      </div>
+
+      <div className="mt-6 flex space-x-4">
+        <button
+          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          onClick={handleSubmit}
+        >
+          Save and Print
+        </button>
+        <button
+          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          onClick={handleClearProducts}
+        >
+          Clear
+        </button>
       </div>
 
       {/* Product Modal */}
       {showModal && (
         <ProductModal
           setShowModal={setShowModal}
-          addProduct={addProduct}
+          addProduct={handleAddProduct}
         />
       )}
     </div>
