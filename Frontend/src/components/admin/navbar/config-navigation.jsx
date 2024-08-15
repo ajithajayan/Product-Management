@@ -54,13 +54,20 @@ const navConfig = [
     path: '/admincontrol/Products',
     icon: icon('ic_blog'),
   },
+
+  {
+    title: 'Inventory',
+    path: '/admincontrol/Inventory',
+    icon: icon('ic_blog'),
+  },
+
   {
     title: 'Inward Stock',
     path: '/admincontrol/Supplier-Orders',
     icon: icon('ic_lock'),
   },
   {
-    title: 'Branch Orders',
+    title: 'Outward Stock',
     path: '/admincontrol/Branch-Orders',
     icon: icon('ic_blog'),
   },
