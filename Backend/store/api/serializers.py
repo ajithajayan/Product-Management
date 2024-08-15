@@ -61,6 +61,11 @@ class ProductInTransactionDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductInTransactionDetail
         fields = '__all__'
+        extra_kwargs = {
+            'transaction': {'required': False},  # transaction will be set in the parent serializer
+            'total': {'required': True},  # total is required and should be included in the request
+            'product': {'required': True}  # product should be the primary key (id)
+        }
 
 # Product In Transaction Serializer
 class ProductInTransactionSerializer(serializers.ModelSerializer):
@@ -111,3 +116,23 @@ class ProductInTransactionSerializer(serializers.ModelSerializer):
                 product_total_stock.save()
 
         return instance
+    
+
+
+class InventorySerializer(serializers.ModelSerializer):
+    product_code = serializers.CharField(source='product.product_code')
+    name = serializers.CharField(source='product.name')
+    barcode = serializers.CharField(source='product.barcode')
+    category_name = serializers.CharField(source='product.category.name')
+    brand_name = serializers.CharField(source='product.brand.name')
+    supplier_name = serializers.CharField(source='transaction.supplier.name')
+    purchase_date = serializers.DateField(source='transaction.purchase_date')
+    stock_quantity = serializers.IntegerField(source='quantity')  # Changed to stock_quantity
+
+    class Meta:
+        model = ProductInTransactionDetail
+        fields = [
+            'product_code', 'name', 'barcode', 'category_name', 'brand_name',
+            'supplier_name', 'purchase_date', 'stock_quantity', 'manufacturing_date',
+            'expiry_date'
+        ]

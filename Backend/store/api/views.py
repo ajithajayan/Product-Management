@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
 from store.models import (
@@ -6,9 +7,11 @@ from store.models import (
 )
 from .serializers import (
     SupplierSerializer, CategorySerializer, BrandSerializer, ProductSerializer, BranchSerializer,
-    ProductInTransactionSerializer
+    ProductInTransactionSerializer, InventorySerializer
 )
 from rest_framework.views import APIView
+from rest_framework import generics
+from django.db.models import F, Value, Case, When, IntegerField
 
 # Supplier Views
 class SupplierListCreateView(generics.ListCreateAPIView):
@@ -104,3 +107,34 @@ class ProductInTransactionDetailView(generics.RetrieveUpdateDestroyAPIView):
             product_total_stock.save()
         
         instance.delete()
+
+
+
+class InventoryListView(generics.ListAPIView):
+    serializer_class = InventorySerializer
+
+    def get_queryset(self):
+        # Get the current date
+        current_date = timezone.now().date()
+
+        # Check if the expired filter is active
+        expired = self.request.query_params.get('expired')
+
+        queryset = ProductInTransactionDetail.objects.select_related(
+            'product', 'product__category', 'product__brand',
+            'transaction', 'transaction__supplier',
+        ).annotate(
+            product_code=F('product__product_code'),
+            name=F('product__name'),
+            barcode=F('product__barcode'),
+            category_name=F('product__category__name'),
+            brand_name=F('product__brand__name'),
+            supplier_name=F('transaction__supplier__name'),
+            purchase_date=F('transaction__purchase_date'),
+            stock_quantity=F('quantity'),  # Change 'quantity' to 'stock_quantity'
+        )
+
+        if expired == "true":
+            queryset = queryset.filter(expiry_date__lt=current_date)
+
+        return queryset

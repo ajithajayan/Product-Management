@@ -55,7 +55,7 @@ const navConfig = [
     icon: icon('ic_blog'),
   },
   {
-    title: 'Supplier Orders',
+    title: 'Inward Stock',
     path: '/admincontrol/Supplier-Orders',
     icon: icon('ic_lock'),
   },
