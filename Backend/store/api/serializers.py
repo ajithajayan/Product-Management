@@ -1,9 +1,10 @@
 from rest_framework import serializers
 from store.models import (
     Supplier, Category, Brand, Product, Branch,
-    ProductInTransaction, ProductInTransactionDetail,TotalStock
+    ProductInTransaction, ProductInTransactionDetail,TotalStock,ProductOutTransaction, ProductOutTransactionDetail
 )
 from django.utils.crypto import get_random_string
+
 
 # Supplier Serializer
 class SupplierSerializer(serializers.ModelSerializer):
@@ -24,19 +25,41 @@ class BrandSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ProductSerializer(serializers.ModelSerializer):
-    # Add fields to get the name of the related objects
     category_name = serializers.CharField(source='category.name', read_only=True)
     brand_name = serializers.CharField(source='brand.name', read_only=True)
+    total_stock = serializers.SerializerMethodField()
+    latest_transaction_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = '__all__'
+        fields = [
+            'id', 'name', 'product_code', 'barcode', 'category_name', 'brand_name',
+            'total_stock', 'latest_transaction_detail',
+        ]
         extra_kwargs = {
-            'barcode': {'read_only': True},  # Barcode is read-only since it's generated automatically
-            'product_code': {'required': False, 'allow_blank': True},  # Product code is optional
-            'category': {'write_only': True},  # Keep category ID write-only
-            'brand': {'write_only': True},     # Keep brand ID write-only
+            'barcode': {'read_only': True},
+            'product_code': {'required': False, 'allow_blank': True},
+            'category': {'write_only': True},
+            'brand': {'write_only': True},
         }
+
+    def get_total_stock(self, obj):
+        try:
+            stock = TotalStock.objects.get(product=obj)
+            return stock.total_quantity
+        except TotalStock.DoesNotExist:
+            return 0
+
+    def get_latest_transaction_detail(self, obj):
+        detail = ProductInTransactionDetail.objects.filter(product=obj).order_by('-id').first()
+        if detail:
+            return {
+                "manufacturing_date": detail.manufacturing_date,
+                "expiry_date": detail.expiry_date,
+                "supplier_name": detail.transaction.supplier.name,
+                "quantity": detail.quantity,
+            }
+        return None
 
     def create(self, validated_data):
         if not validated_data.get('product_code'):
@@ -48,6 +71,7 @@ class ProductSerializer(serializers.ModelSerializer):
                 validated_data['product_code'] = 'P5001'  # Start from P5001 if no products exist
         return super().create(validated_data)
     
+
 # Branch Serializer
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:
@@ -136,3 +160,26 @@ class InventorySerializer(serializers.ModelSerializer):
             'supplier_name', 'purchase_date', 'stock_quantity', 'manufacturing_date',
             'expiry_date'
         ]
+
+
+class ProductOutTransactionDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductOutTransactionDetail
+        fields = '__all__'
+
+class ProductOutTransactionSerializer(serializers.ModelSerializer):
+    transaction_details = ProductOutTransactionDetailSerializer(many=True)
+
+    class Meta:
+        model = ProductOutTransaction
+        fields = '__all__'
+
+    def create(self, validated_data):
+        transaction_details_data = validated_data.pop('transaction_details')
+        transaction = ProductOutTransaction.objects.create(**validated_data)
+
+        for detail_data in transaction_details_data:
+            # This will call the create method in ProductOutTransactionDetailSerializer, which handles the stock deduction
+            ProductOutTransactionDetail.objects.create(transaction=transaction, **detail_data)
+
+        return transaction

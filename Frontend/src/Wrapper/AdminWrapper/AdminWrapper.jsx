@@ -16,6 +16,8 @@ import ProductList from "../../components/Products/ProductList";
 import AdminPrivateRoute from "../../components/Private/AdminPrivateRoute";
 import TransactionForm from "../../components/Transaction In/TransactionForm";
 import InventoryList from "../../components/Inventory/InventoryList";
+import StockOutTransactionForm from "../../components/Transaction Out/TransactionOutForm";
+import TransactionOutForm from "../../components/Transaction Out/TransactionOutForm";
 
 function AdminWrapper() {
   const routes = useRoutes([
@@ -42,6 +44,9 @@ function AdminWrapper() {
         { path: "/Products", element: <ProductList /> },
         { path: "/Supplier-Orders", element: <TransactionForm /> },
         { path: "/Inventory", element: <InventoryList /> },
+        { path: "/Branch-Orders", element: <TransactionOutForm /> },
+
+
       ],
     },
     {

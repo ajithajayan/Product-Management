@@ -140,6 +140,35 @@ class Branch(models.Model):
 
     def __str__(self):
         return self.name
+    
+
+class ProductOutTransaction(models.Model):
+    date = models.DateField(default=timezone.now)
+    branch = models.ForeignKey('Branch', on_delete=models.CASCADE)
+    transfer_invoice_number = models.CharField(max_length=255)
+    branch_in_charge = models.CharField(max_length=255)
+    remarks = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Out Transaction {self.id} - {self.branch.name} on {self.date}"
+
+class ProductOutTransactionDetail(models.Model):
+    transaction = models.ForeignKey(ProductOutTransaction, on_delete=models.CASCADE, related_name='transaction_details')
+    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    qty_requested = models.PositiveIntegerField()
+
+    def save(self, *args, **kwargs):
+        # Subtract stock from the total stock when saving a transaction detail
+        total_stock, created = TotalStock.objects.get_or_create(product=self.product)
+        if total_stock.total_quantity < self.qty_requested:
+            raise ValueError(f"Not enough stock for {self.product.name}")
+        total_stock.total_quantity -= self.qty_requested
+        total_stock.save()
+
+        super(ProductOutTransactionDetail, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.product.name} - {self.qty_requested} units"    
 
 
  

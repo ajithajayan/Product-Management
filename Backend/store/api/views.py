@@ -3,11 +3,11 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from store.models import (
     Supplier, Category, Brand, Product, Branch,
-    ProductInTransaction, ProductInTransactionDetail, TotalStock
+    ProductInTransaction, ProductInTransactionDetail, TotalStock, ProductOutTransaction
 )
 from .serializers import (
     SupplierSerializer, CategorySerializer, BrandSerializer, ProductSerializer, BranchSerializer,
-    ProductInTransactionSerializer, InventorySerializer
+    ProductInTransactionSerializer, InventorySerializer, ProductOutTransactionSerializer
 )
 from rest_framework.views import APIView
 from rest_framework import generics
@@ -138,3 +138,11 @@ class InventoryListView(generics.ListAPIView):
             queryset = queryset.filter(expiry_date__lt=current_date)
 
         return queryset
+    
+
+# Product Transaction Out format
+
+
+class ProductOutTransactionListCreateView(generics.ListCreateAPIView):
+    queryset = ProductOutTransaction.objects.all()
+    serializer_class = ProductOutTransactionSerializer
