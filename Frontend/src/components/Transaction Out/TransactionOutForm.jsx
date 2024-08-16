@@ -39,12 +39,18 @@ const TransactionOutForm = () => {
   };
 
   const handleAddProduct = (product) => {
+    if (!product.id) {
+        console.error('Product ID is missing:', product);
+        return;
+    }
+
     setTransactionDetails({
-      ...transactionDetails,
-      products: [...transactionDetails.products, product],
+        ...transactionDetails,
+        products: [...transactionDetails.products, product],
     });
     setShowModal(false);
-  };
+};
+
 
   const calculateTotalQuantity = () => {
     const total = transactionDetails.products.reduce(
@@ -61,26 +67,30 @@ const TransactionOutForm = () => {
 
   const handleSubmit = async () => {
     const transformedData = {
-      date: transactionDetails.date,
-      branch: transactionDetails.branch?.value || null,
-      transfer_invoice_number: transactionDetails.transferInvoiceNumber,
-      branch_in_charge: transactionDetails.branchInCharge,
-      transaction_details: transactionDetails.products.map((product) => ({
-        product: product.id, // Ensure this is the product ID (pk)
-        qty_requested: product.qty_requested,
-      })),
-      remarks: transactionDetails.remarks,
+        date: transactionDetails.date,
+        branch: transactionDetails.branch?.value || null,
+        transfer_invoice_number: transactionDetails.transferInvoiceNumber,
+        branch_in_charge: transactionDetails.branchInCharge,
+        transaction_details: transactionDetails.products.map((product) => {
+            console.log('Submitting product ID:', product.id); // Log product ID
+            return {
+                product: product.id, // Ensure this is the product ID (pk)
+                qty_requested: product.qty_requested,
+            };
+        }),
+        remarks: transactionDetails.remarks,
     };
 
     try {
-      await axios.post(`${baseUrl}store/product-out-transactions/`, transformedData);
-      Swal.fire("Success", "Transaction saved successfully", "success");
-      handleClearProducts(); // Clear form after submission
+        await axios.post(`${baseUrl}store/product-out-transactions/`, transformedData);
+        Swal.fire("Success", "Transaction saved successfully", "success");
+        handleClearProducts(); // Clear form after submission
     } catch (error) {
-      console.error("Error saving transaction:", error);
-      Swal.fire("Error", "Failed to save the transaction", "error");
+        console.error("Error saving transaction:", error);
+        Swal.fire("Error", "Failed to save the transaction", "error");
     }
-  };
+};
+
 
   return (
     <div className="container mx-auto p-6">

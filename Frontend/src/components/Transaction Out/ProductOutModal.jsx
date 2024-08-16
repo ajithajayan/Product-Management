@@ -27,21 +27,26 @@ const ProductOutModal = ({ setShowModal, addProduct }) => {
 
   const handleProductChange = async (selectedOption) => {
     if (selectedOption) {
+        // Fetch inventory details for the selected product
         const response = await axios.get(`${baseUrl}store/inventory/?search=${selectedOption.label}`);
         const inventory = response.data.results[0]; // Assuming the first result is the correct one
 
-        setProductDetails({
-            ...productDetails,
-            id: selectedOption.value,
-            productCode: inventory.product_code,
-            name: inventory.name,
-            brandName: inventory.brand_name,
-            categoryName: inventory.category_name,
-            barcode: inventory.barcode,
-            manufacturingDate: inventory.manufacturing_date,
-            expiryDate: inventory.expiry_date,
-            availableQuantity: inventory.remaining_quantity,
-        });
+        if (inventory) {
+          setProductDetails({
+              ...productDetails,
+              id: selectedOption.value,  // Ensure the product ID is included
+              productCode: inventory.product_code,
+              name: inventory.name,
+              brandName: inventory.brand_name,
+              categoryName: inventory.category_name,
+              barcode: inventory.barcode,
+              manufacturingDate: inventory.manufacturing_date,
+              expiryDate: inventory.expiry_date,
+              availableQuantity: inventory.remaining_quantity,
+          });
+        } else {
+          console.error("Inventory not found for the selected product.");
+        }
     }
   };
 
@@ -50,6 +55,7 @@ const ProductOutModal = ({ setShowModal, addProduct }) => {
       alert("Requested quantity exceeds available stock.");
       return;
     }
+    console.log("Product details being added:", productDetails); // Log product details
     addProduct(productDetails);
     setShowModal(false);
   };
