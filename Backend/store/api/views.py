@@ -141,8 +141,7 @@ class InventoryListView(generics.ListAPIView):
     
 
 # Product Transaction Out format
-
-
 class ProductOutTransactionListCreateView(generics.ListCreateAPIView):
     queryset = ProductOutTransaction.objects.all()
     serializer_class = ProductOutTransactionSerializer
+

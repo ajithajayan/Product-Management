@@ -27,10 +27,10 @@ const InventoryList = () => {
     setShowExpired((prev) => !prev);
   };
 
-  const getRowClassName = (quantity) => {
-    if (quantity === 0) {
+  const getRowClassName = (remaining_quantity) => {
+    if (remaining_quantity === 0) {
       return "bg-red-500 text-white";
-    } else if (quantity < 10) {
+    } else if (remaining_quantity < 10) {
       return "bg-yellow-500 text-white";
     }
     return "";
@@ -63,7 +63,8 @@ const InventoryList = () => {
                 <th className="py-3 px-6 text-left">Purchase Date</th>
                 <th className="py-3 px-6 text-left">Manufacturing Date</th>
                 <th className="py-3 px-6 text-left">Expiry Date</th>
-                <th className="py-3 px-6 text-left">Quantity</th>
+                <th className="py-3 px-6 text-left">Purchased Quantity</th> {/* New field */}
+                <th className="py-3 px-6 text-left">Remaining Quantity</th> {/* New field */}
               </tr>
             </thead>
             <tbody className="text-gray-600 text-sm">
@@ -71,7 +72,7 @@ const InventoryList = () => {
                 <tr
                   key={index}
                   className={`border-b border-gray-200 hover:bg-gray-100 ${getRowClassName(
-                    item.stock_quantity
+                    item.remaining_quantity
                   )}`}
                 >
                   <td className="py-3 px-6 text-left">{index + 1}</td>
@@ -84,7 +85,8 @@ const InventoryList = () => {
                   <td className="py-3 px-6 text-left">{item.purchase_date}</td>
                   <td className="py-3 px-6 text-left">{item.manufacturing_date}</td>
                   <td className="py-3 px-6 text-left">{item.expiry_date}</td>
-                  <td className="py-3 px-6 text-left">{item.stock_quantity}</td>
+                  <td className="py-3 px-6 text-left">{item.purchased_quantity}</td> {/* Displaying Purchased Quantity */}
+                  <td className="py-3 px-6 text-left">{item.remaining_quantity}</td> {/* Displaying Remaining Quantity */}
                 </tr>
               ))}
             </tbody>

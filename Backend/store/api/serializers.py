@@ -1,10 +1,10 @@
 from rest_framework import serializers
 from store.models import (
     Supplier, Category, Brand, Product, Branch,
-    ProductInTransaction, ProductInTransactionDetail,TotalStock,ProductOutTransaction, ProductOutTransactionDetail
+    ProductInTransaction, ProductInTransactionDetail, TotalStock, ProductOutTransaction, ProductOutTransactionDetail
 )
 from django.utils.crypto import get_random_string
-
+from django.db import transaction
 
 # Supplier Serializer
 class SupplierSerializer(serializers.ModelSerializer):
@@ -25,41 +25,19 @@ class BrandSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ProductSerializer(serializers.ModelSerializer):
+    # Add fields to get the name of the related objects
     category_name = serializers.CharField(source='category.name', read_only=True)
     brand_name = serializers.CharField(source='brand.name', read_only=True)
-    total_stock = serializers.SerializerMethodField()
-    latest_transaction_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = [
-            'id', 'name', 'product_code', 'barcode', 'category_name', 'brand_name',
-            'total_stock', 'latest_transaction_detail',
-        ]
+        fields = '__all__'
         extra_kwargs = {
-            'barcode': {'read_only': True},
-            'product_code': {'required': False, 'allow_blank': True},
-            'category': {'write_only': True},
-            'brand': {'write_only': True},
+            'barcode': {'read_only': True},  # Barcode is read-only since it's generated automatically
+            'product_code': {'required': False, 'allow_blank': True},  # Product code is optional
+            'category': {'write_only': True},  # Keep category ID write-only
+            'brand': {'write_only': True},     # Keep brand ID write-only
         }
-
-    def get_total_stock(self, obj):
-        try:
-            stock = TotalStock.objects.get(product=obj)
-            return stock.total_quantity
-        except TotalStock.DoesNotExist:
-            return 0
-
-    def get_latest_transaction_detail(self, obj):
-        detail = ProductInTransactionDetail.objects.filter(product=obj).order_by('-id').first()
-        if detail:
-            return {
-                "manufacturing_date": detail.manufacturing_date,
-                "expiry_date": detail.expiry_date,
-                "supplier_name": detail.transaction.supplier.name,
-                "quantity": detail.quantity,
-            }
-        return None
 
     def create(self, validated_data):
         if not validated_data.get('product_code'):
@@ -71,7 +49,7 @@ class ProductSerializer(serializers.ModelSerializer):
                 validated_data['product_code'] = 'P5001'  # Start from P5001 if no products exist
         return super().create(validated_data)
     
-
+    
 # Branch Serializer
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:
@@ -86,10 +64,18 @@ class ProductInTransactionDetailSerializer(serializers.ModelSerializer):
         model = ProductInTransactionDetail
         fields = '__all__'
         extra_kwargs = {
-            'transaction': {'required': False},  # transaction will be set in the parent serializer
-            'total': {'required': True},  # total is required and should be included in the request
-            'product': {'required': True}  # product should be the primary key (id)
+            'transaction': {'required': False},
+            'total': {'required': True},
+            'product': {'required': True},
+            'purchased_quantity': {'read_only': True},
+            'remaining_quantity': {'read_only': True},
         }
+
+
+    def create(self, validated_data):
+        validated_data['purchased_quantity'] = validated_data['quantity']
+        validated_data['remaining_quantity'] = validated_data['quantity']
+        return super().create(validated_data)
 
 # Product In Transaction Serializer
 class ProductInTransactionSerializer(serializers.ModelSerializer):
@@ -140,9 +126,8 @@ class ProductInTransactionSerializer(serializers.ModelSerializer):
                 product_total_stock.save()
 
         return instance
-    
 
-
+# Inventory Serializer
 class InventorySerializer(serializers.ModelSerializer):
     product_code = serializers.CharField(source='product.product_code')
     name = serializers.CharField(source='product.name')
@@ -151,35 +136,66 @@ class InventorySerializer(serializers.ModelSerializer):
     brand_name = serializers.CharField(source='product.brand.name')
     supplier_name = serializers.CharField(source='transaction.supplier.name')
     purchase_date = serializers.DateField(source='transaction.purchase_date')
-    stock_quantity = serializers.IntegerField(source='quantity')  # Changed to stock_quantity
+    purchased_quantity = serializers.IntegerField()
+    remaining_quantity = serializers.IntegerField()
 
     class Meta:
         model = ProductInTransactionDetail
         fields = [
             'product_code', 'name', 'barcode', 'category_name', 'brand_name',
-            'supplier_name', 'purchase_date', 'stock_quantity', 'manufacturing_date',
-            'expiry_date'
+            'supplier_name', 'purchase_date', 'purchased_quantity',
+            'remaining_quantity', 'manufacturing_date', 'expiry_date'
         ]
-
 
 class ProductOutTransactionDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductOutTransactionDetail
-        fields = '__all__'
+        fields = ['product', 'qty_requested']
+
+    def create(self, validated_data):
+        product = validated_data['product']
+        qty_requested = validated_data['qty_requested']
+
+        # Fetch the total stock and update remaining quantity in ProductInTransactionDetail
+        with transaction.atomic():
+            in_transaction_details = ProductInTransactionDetail.objects.filter(product=product).order_by('expiry_date')
+
+            remaining_qty_needed = qty_requested
+
+            for detail in in_transaction_details:
+                if detail.remaining_quantity >= remaining_qty_needed:
+                    detail.remaining_quantity -= remaining_qty_needed
+                    detail.save()
+                    break
+                else:
+                    remaining_qty_needed -= detail.remaining_quantity
+                    detail.remaining_quantity = 0
+                    detail.save()
+
+            # Update the total stock in TotalStock
+            product_total_stock = TotalStock.objects.get(product=product)
+            if product_total_stock.total_quantity >= qty_requested:
+                product_total_stock.total_quantity -= qty_requested
+                product_total_stock.save()
+            else:
+                raise serializers.ValidationError("Not enough stock to fulfill the request.")
+
+        return super().create(validated_data)
+
 
 class ProductOutTransactionSerializer(serializers.ModelSerializer):
     transaction_details = ProductOutTransactionDetailSerializer(many=True)
 
     class Meta:
         model = ProductOutTransaction
-        fields = '__all__'
+        fields = ['date', 'branch', 'transfer_invoice_number', 'branch_in_charge', 'transaction_details', 'remarks']
 
     def create(self, validated_data):
         transaction_details_data = validated_data.pop('transaction_details')
         transaction = ProductOutTransaction.objects.create(**validated_data)
 
         for detail_data in transaction_details_data:
-            # This will call the create method in ProductOutTransactionDetailSerializer, which handles the stock deduction
             ProductOutTransactionDetail.objects.create(transaction=transaction, **detail_data)
 
         return transaction
+

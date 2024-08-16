@@ -14,6 +14,8 @@ import barcode
 from barcode.writer import ImageWriter
 from io import BytesIO
 from django.utils import timezone
+from django.db import models, transaction
+from django.core.exceptions import ValidationError
 
 # Supplier model
 class Supplier(models.Model):
@@ -94,21 +96,25 @@ class ProductInTransaction(models.Model):
     def __str__(self):
         return f"Transaction {self.id} - {self.supplier.name} on {self.purchase_date}"
 
+
 # ProductInTransactionDetail Model
 class ProductInTransactionDetail(models.Model):
     transaction = models.ForeignKey(ProductInTransaction, on_delete=models.CASCADE, related_name='transaction_details')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     manufacturing_date = models.DateField()
     expiry_date = models.DateField()
-    quantity = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField()  # Existing field
+    purchased_quantity = models.PositiveIntegerField()  # New field to track purchased quantity
+    remaining_quantity = models.PositiveIntegerField()  # New field to track remaining quantity
     total = models.DecimalField(max_digits=10, decimal_places=2)
 
     def save(self, *args, **kwargs):
-        # We won't update the stock here; it will be done after the entire transaction is saved.
+        if not self.pk:  # On creation, set purchased_quantity and remaining_quantity to quantity
+            self.purchased_quantity = self.quantity
+            self.remaining_quantity = self.quantity
         super(ProductInTransactionDetail, self).save(*args, **kwargs)
 
-    def __str__(self):
-        return f"{self.product.name} - {self.quantity} units"
+
 
 # TotalStock Model
 class TotalStock(models.Model):
@@ -151,25 +157,33 @@ class ProductOutTransaction(models.Model):
 
     def __str__(self):
         return f"Out Transaction {self.id} - {self.branch.name} on {self.date}"
+    
 
-class ProductOutTransactionDetail(models.Model):
+class ProductOutTransactionDetail(models.Model): 
     transaction = models.ForeignKey(ProductOutTransaction, on_delete=models.CASCADE, related_name='transaction_details')
-    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
     qty_requested = models.PositiveIntegerField()
 
     def save(self, *args, **kwargs):
-        # Subtract stock from the total stock when saving a transaction detail
-        total_stock, created = TotalStock.objects.get_or_create(product=self.product)
-        if total_stock.total_quantity < self.qty_requested:
-            raise ValueError(f"Not enough stock for {self.product.name}")
-        total_stock.total_quantity -= self.qty_requested
-        total_stock.save()
+        with transaction.atomic():
+            # Update remaining_quantity in ProductInTransactionDetail
+            in_transaction_details = ProductInTransactionDetail.objects.filter(product=self.product).order_by('expiry_date')
 
-        super(ProductOutTransactionDetail, self).save(*args, **kwargs)
+            remaining_qty_needed = self.qty_requested
+
+            for detail in in_transaction_details:
+                if detail.remaining_quantity >= remaining_qty_needed:
+                    detail.remaining_quantity -= remaining_qty_needed
+                    detail.save()
+                    break
+                else:
+                    remaining_qty_needed -= detail.remaining_quantity
+                    detail.remaining_quantity = 0
+                    detail.save()
+
+            super(ProductOutTransactionDetail, self).save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.product.name} - {self.qty_requested} units"    
+        return f"{self.product.name} - {self.qty_requested} units"
 
-
- 
 

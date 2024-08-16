@@ -5,6 +5,7 @@ import { baseUrl } from "../../utils/constants/Constants";
 
 const ProductOutModal = ({ setShowModal, addProduct }) => {
   const [productDetails, setProductDetails] = useState({
+    id: null,
     productCode: "",
     name: "",
     brandName: "",
@@ -26,19 +27,21 @@ const ProductOutModal = ({ setShowModal, addProduct }) => {
 
   const handleProductChange = async (selectedOption) => {
     if (selectedOption) {
-      const response = await axios.get(`${baseUrl}store/products/${selectedOption.value}/`);
-      const product = response.data;
-      setProductDetails({
-        ...productDetails,
-        productCode: product.product_code,
-        name: product.name,
-        brandName: product.brand_name,
-        categoryName: product.category_name,
-        barcode: product.barcode,
-        manufacturingDate: product.latest_transaction_detail?.manufacturing_date || "",
-        expiryDate: product.latest_transaction_detail?.expiry_date || "",
-        availableQuantity: product.total_stock,
-      });
+        const response = await axios.get(`${baseUrl}store/inventory/?search=${selectedOption.label}`);
+        const inventory = response.data.results[0]; // Assuming the first result is the correct one
+
+        setProductDetails({
+            ...productDetails,
+            id: selectedOption.value,
+            productCode: inventory.product_code,
+            name: inventory.name,
+            brandName: inventory.brand_name,
+            categoryName: inventory.category_name,
+            barcode: inventory.barcode,
+            manufacturingDate: inventory.manufacturing_date,
+            expiryDate: inventory.expiry_date,
+            availableQuantity: inventory.remaining_quantity,
+        });
     }
   };
 

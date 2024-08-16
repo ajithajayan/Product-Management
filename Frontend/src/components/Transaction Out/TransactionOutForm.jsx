@@ -7,7 +7,7 @@ import ProductOutModal from "./ProductOutModal";
 
 const TransactionOutForm = () => {
   const [transactionDetails, setTransactionDetails] = useState({
-    date: "",
+    date: "", // YYYY-MM-DD format required
     branch: null,
     transferInvoiceNumber: "",
     branchInCharge: "",
@@ -35,7 +35,7 @@ const TransactionOutForm = () => {
   };
 
   const handleInputChange = (newValue) => {
-    return newValue.replace(/\W/g, '');
+    return newValue.replace(/\W/g, "");
   };
 
   const handleAddProduct = (product) => {
@@ -47,7 +47,10 @@ const TransactionOutForm = () => {
   };
 
   const calculateTotalQuantity = () => {
-    const total = transactionDetails.products.reduce((sum, product) => sum + product.qty_requested, 0);
+    const total = transactionDetails.products.reduce(
+      (sum, product) => sum + product.qty_requested,
+      0
+    );
     setTotalQuantity(total);
   };
 
@@ -58,24 +61,24 @@ const TransactionOutForm = () => {
 
   const handleSubmit = async () => {
     const transformedData = {
-        date: transactionDetails.date,
-        branch: transactionDetails.branch?.value || null,
-        transfer_invoice_number: transactionDetails.transferInvoiceNumber,
-        branch_in_charge: transactionDetails.branchInCharge,
-        transaction_details: transactionDetails.products.map((product) => ({
-            product: product.id, // Ensure this is the product ID (pk)
-            qty_requested: product.qty_requested,
-        })),
-        remarks: transactionDetails.remarks,
+      date: transactionDetails.date,
+      branch: transactionDetails.branch?.value || null,
+      transfer_invoice_number: transactionDetails.transferInvoiceNumber,
+      branch_in_charge: transactionDetails.branchInCharge,
+      transaction_details: transactionDetails.products.map((product) => ({
+        product: product.id, // Ensure this is the product ID (pk)
+        qty_requested: product.qty_requested,
+      })),
+      remarks: transactionDetails.remarks,
     };
 
     try {
-        await axios.post(`${baseUrl}store/product-out-transactions/`, transformedData);
-        Swal.fire("Success", "Transaction saved successfully", "success");
-        handleClearProducts(); // Clear form after submission
+      await axios.post(`${baseUrl}store/product-out-transactions/`, transformedData);
+      Swal.fire("Success", "Transaction saved successfully", "success");
+      handleClearProducts(); // Clear form after submission
     } catch (error) {
-        console.error("Error saving transaction:", error);
-        Swal.fire("Error", "Failed to save the transaction", "error");
+      console.error("Error saving transaction:", error);
+      Swal.fire("Error", "Failed to save the transaction", "error");
     }
   };
 
