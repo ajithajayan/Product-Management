@@ -6,42 +6,56 @@ import { baseUrl } from "../../utils/constants/Constants";
 const ExpiredProductList = () => {
   const [expiredProducts, setExpiredProducts] = useState([]);
 
-  useEffect(() => {
-    const fetchExpiredProducts = async () => {
-      const response = await axios.get(`${baseUrl}store/expired-products/`);
-      setExpiredProducts(response.data.results);
-    };
+  const fetchExpiredProducts = async () => {
+    try {
+        const response = await axios.get(`${baseUrl}store/expired-products/`);
+        setExpiredProducts(response.data.results);
+    } catch (error) {
+        console.error("Error fetching expired products:", error);
+    }
+};
 
+useEffect(() => {
     fetchExpiredProducts();
-  }, []);
+}, []);
+
 
   const handleRemoveExpiredProduct = async (product) => {
-    const { id, remaining_quantity } = product;
+    const { product_id, remaining_quantity } = product;
+
+    console.log("Removing Product ID:", product_id);
+
+    if (!product_id) {
+        Swal.fire("Error", "Product ID is missing. Cannot remove product.", "error");
+        return;
+    }
 
     Swal.fire({
-      title: 'Remove Expired Product',
-      text: `Are you sure you want to remove ${remaining_quantity} units of ${product.name}?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, remove it!',
+        title: 'Remove Expired Product',
+        text: `Are you sure you want to remove ${remaining_quantity} units of ${product.name}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, remove it!',
     }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          await axios.post(`${baseUrl}store/remove-expired-product/`, {
-            product_id: id,
-            qty_to_remove: remaining_quantity,
-            remarks: "Expired product removed",
-          });
-          Swal.fire("Removed!", "Expired product has been removed.", "success");
-          // Remove the product from the list
-          setExpiredProducts(expiredProducts.filter((p) => p.id !== id));
-        } catch (error) {
-          console.error("Error removing expired product:", error);
-          Swal.fire("Error", "Failed to remove expired product", "error");
+        if (result.isConfirmed) {
+            try {
+                await axios.post(`${baseUrl}store/remove-expired-product/`, {
+                    product_id: product_id,
+                    qty_to_remove: remaining_quantity,
+                    remarks: "Expired product removed",
+                });
+                Swal.fire("Removed!", "Expired product has been removed.", "success");
+
+                // Fetch the updated list of expired products
+                fetchExpiredProducts();
+            } catch (error) {
+                console.error("Error removing expired product:", error);
+                Swal.fire("Error", "Failed to remove expired product", "error");
+            }
         }
-      }
     });
-  };
+};
+
 
   return (
     <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
@@ -61,7 +75,7 @@ const ExpiredProductList = () => {
           </thead>
           <tbody className="text-gray-600 text-sm">
             {expiredProducts.map((product) => (
-              <tr key={product.id} className="border-b border-gray-200 hover:bg-gray-100">
+              <tr key={product.id || product.product_code} className="border-b border-gray-200 hover:bg-gray-100">
                 <td className="py-3 px-6 text-left">{product.product_code}</td>
                 <td className="py-3 px-6 text-left">{product.name}</td>
                 <td className="py-3 px-6 text-left">{product.brand_name}</td>

@@ -129,23 +129,27 @@ class ProductInTransactionSerializer(serializers.ModelSerializer):
 
 # Inventory Serializer
 class InventorySerializer(serializers.ModelSerializer):
-    product_code = serializers.CharField(source='product.product_code')
-    name = serializers.CharField(source='product.name')
-    barcode = serializers.CharField(source='product.barcode')
-    category_name = serializers.CharField(source='product.category.name')
-    brand_name = serializers.CharField(source='product.brand.name')
-    supplier_name = serializers.CharField(source='transaction.supplier.name')
-    purchase_date = serializers.DateField(source='transaction.purchase_date')
-    purchased_quantity = serializers.IntegerField()
-    remaining_quantity = serializers.IntegerField()
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_code = serializers.CharField(source='product.product_code', read_only=True)
+    name = serializers.CharField(source='product.name', read_only=True)
+    barcode = serializers.CharField(source='product.barcode', read_only=True)
+    category_name = serializers.CharField(source='product.category.name', read_only=True)
+    brand_name = serializers.CharField(source='product.brand.name', read_only=True)
+    supplier_name = serializers.CharField(source='transaction.supplier.name', read_only=True)
+    purchase_date = serializers.DateField(source='transaction.purchase_date', read_only=True)
+    purchased_quantity = serializers.IntegerField(source='quantity', read_only=True)
+    remaining_quantity = serializers.IntegerField(read_only=True)
+    manufacturing_date = serializers.DateField(read_only=True)
+    expiry_date = serializers.DateField(read_only=True)
 
     class Meta:
         model = ProductInTransactionDetail
         fields = [
-            'product_code', 'name', 'barcode', 'category_name', 'brand_name',
-            'supplier_name', 'purchase_date', 'purchased_quantity',
-            'remaining_quantity', 'manufacturing_date', 'expiry_date'
+            'product_id', 'product_code', 'name', 'barcode', 'category_name', 'brand_name', 
+            'supplier_name', 'purchase_date', 'purchased_quantity', 'remaining_quantity', 
+            'manufacturing_date', 'expiry_date'
         ]
+
 
 class ProductOutTransactionDetailSerializer(serializers.ModelSerializer):
     class Meta:
@@ -203,6 +207,7 @@ class ProductOutTransactionSerializer(serializers.ModelSerializer):
 
 
 class ExpiredProductSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_code = serializers.CharField(source='product.product_code', read_only=True)
     brand_name = serializers.CharField(source='product.brand.name', read_only=True)
@@ -210,9 +215,11 @@ class ExpiredProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ExpiredProduct
-        fields = ['id', 'product', 'product_name', 'product_code', 'brand_name', 'category_name', 'qty_expired', 'expiry_date', 'remarks']
+        fields = ['id', 'product_id', 'product_name', 'product_code', 'brand_name', 'category_name', 'qty_expired', 'expiry_date', 'remarks']
+
 
 class DefectiveProductSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
     product_code = serializers.CharField(source='product.product_code', read_only=True)
     brand_name = serializers.CharField(source='product.brand.name', read_only=True)
@@ -220,5 +227,4 @@ class DefectiveProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DefectiveProduct
-        fields = ['id', 'product', 'product_name', 'product_code', 'brand_name', 'category_name', 'qty_defective', 'remarks']
-
+        fields = ['id', 'product_id', 'product_name', 'product_code', 'brand_name', 'category_name', 'qty_defective', 'remarks']

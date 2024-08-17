@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import AsyncSelect from 'react-select/async';
 import Swal from 'sweetalert2';
+import { useNavigate } from 'react-router-dom';
 import { baseUrl } from "../../utils/constants/Constants";
 
 const DefectiveProductForm = () => {
@@ -17,6 +18,8 @@ const DefectiveProductForm = () => {
     expiryDate: "",
     availableQuantity: 0,
   });
+
+  const navigate = useNavigate();
 
   const loadProductOptions = async (inputValue) => {
     const response = await axios.get(`${baseUrl}store/products/?search=${inputValue}`);
@@ -76,104 +79,124 @@ const DefectiveProductForm = () => {
     }
   };
 
+  const handleNavigateToExpired = () => {
+    navigate('/admincontrol/expired-products');
+  };
+
   return (
-    <div className="bg-white p-8 rounded-lg shadow-md max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Remove Defective Product</h2>
+    <div className="bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-auto mt-8">
+      <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-8">Remove Defective Product</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="col-span-3">
-          <label className="block text-sm font-medium text-gray-700">Product</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
           <AsyncSelect
             loadOptions={loadProductOptions}
             onChange={handleProductChange}
             placeholder="Search Product Code or Name"
             className="mt-1"
+            styles={{
+              control: (provided) => ({
+                ...provided,
+                borderColor: '#d1d5db',
+                boxShadow: 'none',
+                '&:hover': {
+                  borderColor: '#3b82f6',
+                },
+              }),
+            }}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Available Quantity</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Available Quantity</label>
           <input
             type="number"
             value={productDetails.availableQuantity}
             readOnly
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Brand</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Brand</label>
           <input
             type="text"
             value={productDetails.brandName}
             readOnly
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Category</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
           <input
             type="text"
             value={productDetails.categoryName}
             readOnly
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Supplier</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Supplier</label>
           <input
             type="text"
             value={productDetails.supplierName}
             readOnly
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Manufacturing Date</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Manufacturing Date</label>
           <input
             type="date"
             value={productDetails.manufacturingDate}
             readOnly
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Expiry Date</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
           <input
             type="date"
             value={productDetails.expiryDate}
             readOnly
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Quantity to Remove</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Quantity to Remove</label>
           <input
             type="number"
             value={productDetails.qty_defective}
             onChange={(e) => setProductDetails({ ...productDetails, qty_defective: parseInt(e.target.value) })}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
         <div className="col-span-3">
-          <label className="block text-sm font-medium text-gray-700">Remarks</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
           <input
             type="text"
             value={productDetails.remarks}
             onChange={(e) => setProductDetails({ ...productDetails, remarks: e.target.value })}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="mt-1 block w-full border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
       </div>
-      <div className="mt-6 flex justify-end space-x-4">
-        <button
-          className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+      <div className="mt-8 flex justify-between space-x-4">
+        {/* <button
+          className="bg-gray-500 text-white py-2 px-6 rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 transition ease-in-out duration-200"
           onClick={() => setProductDetails({ id: null, qty_defective: 0, remarks: "" })}
         >
           Cancel
-        </button>
+        </button> */}
         <button
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          className="bg-blue-500 text-white py-2 px-6 rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition ease-in-out duration-200"
           onClick={handleSubmitDefective}
         >
           Remove Defective Product
+        </button>
+        <button
+          className="bg-yellow-500 text-white py-2 px-6 rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50 transition ease-in-out duration-200"
+          onClick={handleNavigateToExpired}
+        >
+          View & Remove Expired Products
         </button>
       </div>
     </div>
