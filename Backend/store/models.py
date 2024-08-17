@@ -185,5 +185,31 @@ class ProductOutTransactionDetail(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.qty_requested} units"
+    
+
+
+# Expired Product Details
+
+class ExpiredProduct(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    qty_expired = models.PositiveIntegerField()
+    removal_date = models.DateField(auto_now_add=True)
+    expiry_date = models.DateField()
+    remarks = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.product.name} - Expired: {self.qty_expired} on {self.removal_date}"
+
+# Defective Product Details
+
+class DefectiveProduct(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    qty_defective = models.PositiveIntegerField()
+    removal_date = models.DateField(auto_now_add=True)
+    remarks = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.product.name} - Defective: {self.qty_defective} on {self.removal_date}"
+
 
 

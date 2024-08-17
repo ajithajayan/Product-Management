@@ -3,15 +3,16 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from store.models import (
     Supplier, Category, Brand, Product, Branch,
-    ProductInTransaction, ProductInTransactionDetail, TotalStock, ProductOutTransaction
+    ProductInTransaction, ProductInTransactionDetail, TotalStock, ProductOutTransaction, ExpiredProduct, DefectiveProduct
 )
 from .serializers import (
-    SupplierSerializer, CategorySerializer, BrandSerializer, ProductSerializer, BranchSerializer,
-    ProductInTransactionSerializer, InventorySerializer, ProductOutTransactionSerializer
+    ExpiredProductSerializer, SupplierSerializer, CategorySerializer, BrandSerializer, ProductSerializer, BranchSerializer,
+    ProductInTransactionSerializer, InventorySerializer, ProductOutTransactionSerializer, DefectiveProductSerializer
 )
 from rest_framework.views import APIView
 from rest_framework import generics
 from django.db.models import F, Value, Case, When, IntegerField
+from django.db import transaction
 
 # Supplier Views
 class SupplierListCreateView(generics.ListCreateAPIView):
@@ -145,3 +146,192 @@ class ProductOutTransactionListCreateView(generics.ListCreateAPIView):
     queryset = ProductOutTransaction.objects.all()
     serializer_class = ProductOutTransactionSerializer
 
+
+
+
+# View to remove expired products and track them
+class RemoveExpiredProductView(APIView):
+    def post(self, request, *args, **kwargs):
+        product_id = request.data.get('product_id')
+        qty_to_remove = request.data.get('qty_to_remove', None)
+        remarks = request.data.get('remarks', '')
+
+        if not product_id or qty_to_remove is None:
+            return Response({"error": "Product ID and quantity to remove are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                in_transaction_details = ProductInTransactionDetail.objects.filter(product_id=product_id, expiry_date__lt=date.today()).order_by('expiry_date')
+
+                remaining_qty_needed = qty_to_remove
+
+                for detail in in_transaction_details:
+                    if remaining_qty_needed <= 0:
+                        break
+
+                    if detail.remaining_quantity >= remaining_qty_needed:
+                        ExpiredProduct.objects.create(
+                            product_id=product_id,
+                            qty_expired=remaining_qty_needed,
+                            expiry_date=detail.expiry_date,
+                            remarks=remarks
+                        )
+
+                        detail.remaining_quantity -= remaining_qty_needed
+                        detail.save()
+                        remaining_qty_needed = 0
+                    else:
+                        ExpiredProduct.objects.create(
+                            product_id=product_id,
+                            qty_expired=detail.remaining_quantity,
+                            expiry_date=detail.expiry_date,
+                            remarks=remarks
+                        )
+
+                        remaining_qty_needed -= detail.remaining_quantity
+                        detail.remaining_quantity = 0
+                        detail.save()
+
+                # Update total stock after removal
+                total_stock = TotalStock.objects.get(product_id=product_id)
+                total_stock.total_quantity -= qty_to_remove
+                total_stock.save()
+
+            return Response({"success": "Expired product removed from inventory and details tracked."}, status=status.HTTP_200_OK)
+        except ProductInTransactionDetail.DoesNotExist:
+            return Response({"error": "Product not found or already removed."}, status=status.HTTP_404_NOT_FOUND)
+        except TotalStock.DoesNotExist:
+            return Response({"error": "Total stock not found for this product."}, status=status.HTTP_404_NOT_FOUND)
+
+# View to remove defective products and track them
+class RemoveDefectiveProductView(APIView):
+    def post(self, request, *args, **kwargs):
+        product_id = request.data.get('product_id')
+        qty_to_remove = request.data.get('qty_to_remove', None)
+        remarks = request.data.get('remarks', '')
+
+        if not product_id or qty_to_remove is None:
+            return Response({"error": "Product ID and quantity to remove are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                in_transaction_details = ProductInTransactionDetail.objects.filter(product_id=product_id).order_by('expiry_date')
+
+                remaining_qty_needed = qty_to_remove
+
+                for detail in in_transaction_details:
+                    if remaining_qty_needed <= 0:
+                        break
+
+                    if detail.remaining_quantity >= remaining_qty_needed:
+                        DefectiveProduct.objects.create(
+                            product_id=product_id,
+                            qty_defective=remaining_qty_needed,
+                            remarks=remarks
+                        )
+
+                        detail.remaining_quantity -= remaining_qty_needed
+                        detail.save()
+                        remaining_qty_needed = 0
+                    else:
+                        DefectiveProduct.objects.create(
+                            product_id=product_id,
+                            qty_defective=detail.remaining_quantity,
+                            remarks=remarks
+                        )
+
+                        remaining_qty_needed -= detail.remaining_quantity
+                        detail.remaining_quantity = 0
+                        detail.save()
+
+                # Update total stock after removal
+                total_stock = TotalStock.objects.get(product_id=product_id)
+                total_stock.total_quantity -= qty_to_remove
+                total_stock.save()
+
+            return Response({"success": "Defective product removed from inventory and details tracked."}, status=status.HTTP_200_OK)
+        except ProductInTransactionDetail.DoesNotExist:
+            return Response({"error": "Product not found or already removed."}, status=status.HTTP_404_NOT_FOUND)
+        except TotalStock.DoesNotExist:
+            return Response({"error": "Total stock not found for this product."}, status=status.HTTP_404_NOT_FOUND)
+
+
+# List view to display all tracked expired products
+class TrackedExpiredProductListView(generics.ListAPIView):
+    queryset = ExpiredProduct.objects.select_related('product').all()
+    serializer_class = ExpiredProductSerializer
+
+# List view to display expired products that are still in stock
+from django.db import transaction
+from datetime import date
+
+# View to list expired products that have not been removed yet
+class ExpiredProductListView(generics.ListAPIView):
+    serializer_class = InventorySerializer
+
+    def get_queryset(self):
+        current_date = timezone.now().date()
+        return ProductInTransactionDetail.objects.select_related(
+            'product', 'product__category', 'product__brand', 'transaction', 'transaction__supplier'
+        ).filter(
+            expiry_date__lt=current_date,
+            remaining_quantity__gt=0  # Ensures only products with remaining stock are shown
+        )
+
+# View to remove expired products and mark them as removed
+class RemoveExpiredProductView(APIView):
+    def post(self, request, *args, **kwargs):
+        product_id = request.data.get('product_id')
+        qty_to_remove = request.data.get('qty_to_remove', None)
+        remarks = request.data.get('remarks', '')
+
+        if not product_id or qty_to_remove is None:
+            return Response({"error": "Product ID and quantity to remove are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+                in_transaction_details = ProductInTransactionDetail.objects.filter(
+                    product_id=product_id, 
+                    expiry_date__lt=date.today(),
+                    remaining_quantity__gt=0  # Only handle products with remaining stock
+                ).order_by('expiry_date')
+
+                remaining_qty_needed = qty_to_remove
+
+                for detail in in_transaction_details:
+                    if remaining_qty_needed <= 0:
+                        break
+
+                    if detail.remaining_quantity >= remaining_qty_needed:
+                        ExpiredProduct.objects.create(
+                            product_id=product_id,
+                            qty_expired=remaining_qty_needed,
+                            expiry_date=detail.expiry_date,
+                            remarks=remarks
+                        )
+
+                        detail.remaining_quantity -= remaining_qty_needed
+                        detail.save()
+                        remaining_qty_needed = 0
+                    else:
+                        ExpiredProduct.objects.create(
+                            product_id=product_id,
+                            qty_expired=detail.remaining_quantity,
+                            expiry_date=detail.expiry_date,
+                            remarks=remarks
+                        )
+
+                        remaining_qty_needed -= detail.remaining_quantity
+                        detail.remaining_quantity = 0
+                        detail.save()
+
+                # Update total stock after removal
+                total_stock = TotalStock.objects.get(product_id=product_id)
+                total_stock.total_quantity -= qty_to_remove
+                total_stock.save()
+
+            return Response({"success": "Expired product removed from inventory and details tracked."}, status=status.HTTP_200_OK)
+        except ProductInTransactionDetail.DoesNotExist:
+            return Response({"error": "Product not found or already removed."}, status=status.HTTP_404_NOT_FOUND)
+        except TotalStock.DoesNotExist:
+            return Response({"error": "Total stock not found for this product."}, status=status.HTTP_404_NOT_FOUND)

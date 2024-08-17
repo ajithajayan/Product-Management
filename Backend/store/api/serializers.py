@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from store.models import (
     Supplier, Category, Brand, Product, Branch,
-    ProductInTransaction, ProductInTransactionDetail, TotalStock, ProductOutTransaction, ProductOutTransactionDetail
+    ProductInTransaction, ProductInTransactionDetail, TotalStock, ProductOutTransaction, ProductOutTransactionDetail, ExpiredProduct, DefectiveProduct
 )
 from django.utils.crypto import get_random_string
 from django.db import transaction
@@ -198,4 +198,27 @@ class ProductOutTransactionSerializer(serializers.ModelSerializer):
             ProductOutTransactionDetail.objects.create(transaction=transaction, **detail_data)
 
         return transaction
+
+
+
+
+class ExpiredProductSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_code = serializers.CharField(source='product.product_code', read_only=True)
+    brand_name = serializers.CharField(source='product.brand.name', read_only=True)
+    category_name = serializers.CharField(source='product.category.name', read_only=True)
+
+    class Meta:
+        model = ExpiredProduct
+        fields = ['id', 'product', 'product_name', 'product_code', 'brand_name', 'category_name', 'qty_expired', 'expiry_date', 'remarks']
+
+class DefectiveProductSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_code = serializers.CharField(source='product.product_code', read_only=True)
+    brand_name = serializers.CharField(source='product.brand.name', read_only=True)
+    category_name = serializers.CharField(source='product.category.name', read_only=True)
+
+    class Meta:
+        model = DefectiveProduct
+        fields = ['id', 'product', 'product_name', 'product_code', 'brand_name', 'category_name', 'qty_defective', 'remarks']
 

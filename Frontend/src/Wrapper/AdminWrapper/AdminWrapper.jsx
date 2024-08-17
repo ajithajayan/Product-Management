@@ -18,6 +18,9 @@ import TransactionForm from "../../components/Transaction In/TransactionForm";
 import InventoryList from "../../components/Inventory/InventoryList";
 import StockOutTransactionForm from "../../components/Transaction Out/TransactionOutForm";
 import TransactionOutForm from "../../components/Transaction Out/TransactionOutForm";
+import DefectiveProductForm from "../../components/Defective-Expiry/DefectiveProductForm";
+import ExpiredProductList from "../../components/Defective-Expiry/ExpiredProductList";
+
 
 function AdminWrapper() {
   const routes = useRoutes([
@@ -45,6 +48,9 @@ function AdminWrapper() {
         { path: "/Supplier-Orders", element: <TransactionForm /> },
         { path: "/Inventory", element: <InventoryList /> },
         { path: "/Branch-Orders", element: <TransactionOutForm /> },
+        { path: "/Defectives", element: <DefectiveProductForm /> },
+        { path: "/expired-products", element: <ExpiredProductList /> },
+        
 
 
       ],

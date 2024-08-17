@@ -5,7 +5,7 @@ from .views import (
     BrandListCreateView, BrandDetailView,
     ProductListCreateView, ProductDetailView, GetTotalStockView, ProductCodeSearchView,
     BranchListCreateView, BranchDetailView,
-    ProductInTransactionListCreateView, ProductInTransactionDetailView,
+    ProductInTransactionListCreateView, ProductInTransactionDetailView,ExpiredProductListView, RemoveExpiredProductView, RemoveDefectiveProductView, TrackedExpiredProductListView
 )
 
 urlpatterns = [
@@ -42,4 +42,10 @@ urlpatterns = [
     # Product Out Transaction URLs
 
     path('product-out-transactions/', ProductOutTransactionListCreateView.as_view(), name='product-out-transaction-list-create'),
+
+
+    path('expired-products/', ExpiredProductListView.as_view(), name='expired-product-list'),
+    path('remove-expired-product/', RemoveExpiredProductView.as_view(), name='remove-expired-product'),
+    path('remove-defective-product/', RemoveDefectiveProductView.as_view(), name='remove-defective-product'),
+    path('tracked-expired-products/', TrackedExpiredProductListView.as_view(), name='tracked-expired-products'),
 ]
