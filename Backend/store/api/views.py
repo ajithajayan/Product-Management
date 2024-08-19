@@ -2,17 +2,18 @@ from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
 from store.models import (
-    Supplier, Category, Brand, Product, Branch,
+    ProductOutTransactionDetail, Supplier, Category, Brand, Product, Branch,
     ProductInTransaction, ProductInTransactionDetail, TotalStock, ProductOutTransaction, ExpiredProduct, DefectiveProduct
 )
 from .serializers import (
-    ExpiredProductSerializer, SupplierSerializer, CategorySerializer, BrandSerializer, ProductSerializer, BranchSerializer,
-    ProductInTransactionSerializer, InventorySerializer, ProductOutTransactionSerializer, DefectiveProductSerializer
+    BranchWiseReportSerializer, ExpiredProductReportSerializer, ExpiredProductSerializer, InwardQtyReportSerializer, OutwardQtyReportSerializer, ProductDetailsReportSerializer, SupplierSerializer, CategorySerializer, BrandSerializer, ProductSerializer, BranchSerializer,
+    ProductInTransactionSerializer, InventorySerializer, ProductOutTransactionSerializer, DefectiveProductSerializer, SupplierWiseReportSerializer
 )
 from rest_framework.views import APIView
 from rest_framework import generics
 from django.db.models import F, Value, Case, When, IntegerField
 from django.db import transaction
+from django.db.models import Sum
 
 # Supplier Views
 class SupplierListCreateView(generics.ListCreateAPIView):
@@ -335,3 +336,62 @@ class RemoveExpiredProductView(APIView):
             return Response({"error": "Product not found or already removed."}, status=status.HTTP_404_NOT_FOUND)
         except TotalStock.DoesNotExist:
             return Response({"error": "Total stock not found for this product."}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
+#********************************** Reports **************************************** 
+
+class InwardQtyReportView(APIView):
+    def get(self, request, *args, **kwargs):
+        transactions = ProductInTransactionDetail.objects.select_related(
+            'transaction', 'product', 'transaction__supplier'
+        ).all()
+        data = InwardQtyReportSerializer(transactions, many=True).data
+        return Response(data)
+    
+
+class OutwardQtyReportView(APIView):
+    def get(self, request, *args, **kwargs):
+        transactions = ProductOutTransactionDetail.objects.select_related(
+            'transaction', 'product', 'transaction__branch'
+        ).all()
+        data = OutwardQtyReportSerializer(transactions, many=True).data
+        return Response(data)
+
+class BranchWiseReportView(APIView):
+    def get(self, request, *args, **kwargs):
+        branch_code = request.query_params.get('branch_code')
+        transactions = ProductOutTransactionDetail.objects.select_related(
+            'transaction', 'product', 'transaction__branch'
+        ).filter(transaction__branch__branch_code=branch_code)
+        data = BranchWiseReportSerializer(transactions, many=True).data
+        return Response(data)
+
+
+class ExpiredProductReportView(APIView):
+    def get(self, request, *args, **kwargs):
+        expired_products = ExpiredProduct.objects.select_related(
+            'product', 'product__category', 'product__brand'
+        ).all()
+        data = ExpiredProductReportSerializer(expired_products, many=True).data
+        return Response(data)
+
+    
+class SupplierWiseReportView(APIView):
+    def get(self, request, *args, **kwargs):
+        supplier_name = request.query_params.get('supplier_name')
+        transactions = ProductInTransactionDetail.objects.select_related(
+            'transaction', 'product', 'transaction__supplier'
+        ).filter(transaction__supplier__name=supplier_name)
+        data = SupplierWiseReportSerializer(transactions, many=True).data
+        return Response(data)
+
+
+
+class ProductDetailsReportView(APIView):
+    def get(self, request, *args, **kwargs):
+        transactions = ProductInTransactionDetail.objects.select_related(
+            'transaction', 'product', 'transaction__supplier'
+        ).all()
+        data = ProductDetailsReportSerializer(transactions, many=True).data
+        return Response(data)

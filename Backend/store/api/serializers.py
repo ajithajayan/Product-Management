@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.db.models import Sum
+
 from store.models import (
     Supplier, Category, Brand, Product, Branch,
     ProductInTransaction, ProductInTransactionDetail, TotalStock, ProductOutTransaction, ProductOutTransactionDetail, ExpiredProduct, DefectiveProduct
@@ -76,6 +78,7 @@ class ProductInTransactionDetailSerializer(serializers.ModelSerializer):
         validated_data['purchased_quantity'] = validated_data['quantity']
         validated_data['remaining_quantity'] = validated_data['quantity']
         return super().create(validated_data)
+    
 
 # Product In Transaction Serializer
 class ProductInTransactionSerializer(serializers.ModelSerializer):
@@ -90,7 +93,23 @@ class ProductInTransactionSerializer(serializers.ModelSerializer):
         transaction = ProductInTransaction.objects.create(**validated_data)
         
         for detail_data in details_data:
-            ProductInTransactionDetail.objects.create(transaction=transaction, **detail_data)
+            # Check if a similar product with the same manufacturing and expiry date exists
+            existing_detail = ProductInTransactionDetail.objects.filter(
+                transaction=transaction,
+                product=detail_data['product'],
+                manufacturing_date=detail_data['manufacturing_date'],
+                expiry_date=detail_data['expiry_date']
+            ).first()
+
+            if existing_detail:
+                # Update the existing detail's quantity and total
+                existing_detail.quantity += detail_data['quantity']
+                existing_detail.total += detail_data['total']
+                existing_detail.save()
+            else:
+                # Create a new detail entry
+                ProductInTransactionDetail.objects.create(transaction=transaction, **detail_data)
+
             # Update total stock for each product in the transaction
             product_total_stock, created = TotalStock.objects.get_or_create(product=detail_data['product'])
             product_total_stock.total_quantity += detail_data['quantity']
@@ -110,6 +129,7 @@ class ProductInTransactionSerializer(serializers.ModelSerializer):
         # Handle updating transaction details
         for detail_data in details_data:
             detail_id = detail_data.get('id')
+
             if detail_id:
                 detail_instance = ProductInTransactionDetail.objects.get(id=detail_id, transaction=instance)
                 detail_instance.product = detail_data.get('product', detail_instance.product)
@@ -119,13 +139,30 @@ class ProductInTransactionSerializer(serializers.ModelSerializer):
                 detail_instance.total = detail_data.get('total', detail_instance.total)
                 detail_instance.save()
             else:
-                ProductInTransactionDetail.objects.create(transaction=instance, **detail_data)
+                # Check if a similar product with the same manufacturing and expiry date exists
+                existing_detail = ProductInTransactionDetail.objects.filter(
+                    transaction=instance,
+                    product=detail_data['product'],
+                    manufacturing_date=detail_data['manufacturing_date'],
+                    expiry_date=detail_data['expiry_date']
+                ).first()
+
+                if existing_detail:
+                    # Update the existing detail's quantity and total
+                    existing_detail.quantity += detail_data['quantity']
+                    existing_detail.total += detail_data['total']
+                    existing_detail.save()
+                else:
+                    # Create a new detail entry
+                    ProductInTransactionDetail.objects.create(transaction=instance, **detail_data)
+
                 # Update stock for the new details
                 product_total_stock, created = TotalStock.objects.get_or_create(product=detail_data['product'])
                 product_total_stock.total_quantity += detail_data['quantity']
                 product_total_stock.save()
 
         return instance
+
 
 # Inventory Serializer
 class InventorySerializer(serializers.ModelSerializer):
@@ -228,3 +265,91 @@ class DefectiveProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = DefectiveProduct
         fields = ['id', 'product_id', 'product_name', 'product_code', 'brand_name', 'category_name', 'qty_defective', 'remarks']
+
+
+
+
+#  **************************** Reports serializer ****************************************
+
+
+class InwardQtyReportSerializer(serializers.ModelSerializer):
+    supplier_name = serializers.CharField(source='transaction.supplier.name', read_only=True)
+    product_detail = serializers.CharField(source='product.name', read_only=True)
+    date = serializers.DateField(source='transaction.purchase_date', read_only=True)
+    invoice_number = serializers.CharField(source='transaction.supplier_invoice_number', read_only=True)
+
+    class Meta:
+        model = ProductInTransactionDetail
+        fields = ['date', 'invoice_number', 'supplier_name', 'product_detail', 'quantity']
+
+
+class OutwardQtyReportSerializer(serializers.ModelSerializer):
+    branch_name = serializers.CharField(source='transaction.branch.name', read_only=True)
+    branch_code = serializers.CharField(source='transaction.branch.branch_code', read_only=True)
+    product_detail = serializers.CharField(source='product.name', read_only=True)
+    date = serializers.DateField(source='transaction.date', read_only=True)
+    transfer_invoice_number = serializers.CharField(source='transaction.transfer_invoice_number', read_only=True)
+
+    class Meta:
+        model = ProductOutTransactionDetail
+        fields = ['date', 'transfer_invoice_number', 'branch_name', 'branch_code', 'product_detail', 'qty_requested']
+
+
+class BranchWiseReportSerializer(serializers.ModelSerializer):
+    branch_name = serializers.CharField(source='transaction.branch.name', read_only=True)
+    branch_code = serializers.CharField(source='transaction.branch.branch_code', read_only=True)
+    product_detail = serializers.CharField(source='product.name', read_only=True)
+    date = serializers.DateField(source='transaction.date', read_only=True)
+    transfer_invoice_number = serializers.CharField(source='transaction.transfer_invoice_number', read_only=True)
+
+    class Meta:
+        model = ProductOutTransactionDetail
+        fields = ['date', 'transfer_invoice_number', 'branch_name', 'branch_code', 'product_detail', 'qty_requested']
+
+
+
+class ExpiredProductReportSerializer(serializers.ModelSerializer):
+    product_detail = serializers.CharField(source='product.name', read_only=True)
+    supplier_name = serializers.CharField(source='product.productintransactiondetail.transaction.supplier.name', read_only=True)
+    supplier_invoice_number = serializers.CharField(source='product.productintransactiondetail.transaction.supplier_invoice_number', read_only=True)
+
+    class Meta:
+        model = ExpiredProduct
+        fields = ['removal_date', 'supplier_invoice_number', 'supplier_name', 'product_detail', 'qty_expired', 'expiry_date']
+
+class SupplierWiseReportSerializer(serializers.ModelSerializer):
+    supplier_name = serializers.CharField(source='transaction.supplier.name', read_only=True)
+    product_detail = serializers.CharField(source='product.name', read_only=True)
+    date = serializers.DateField(source='transaction.purchase_date', read_only=True)
+    supplier_invoice_number = serializers.CharField(source='transaction.supplier_invoice_number', read_only=True)
+
+    class Meta:
+        model = ProductInTransactionDetail
+        fields = ['date', 'supplier_invoice_number', 'supplier_name', 'product_detail', 'quantity', 'expiry_date']
+
+class ProductDetailsReportSerializer(serializers.ModelSerializer):
+    outward_qty = serializers.SerializerMethodField()
+    date = serializers.DateField(source='transaction.purchase_date')
+    supplier_invoice_number = serializers.CharField(source='transaction.supplier_invoice_number')
+    supplier_name = serializers.CharField(source='transaction.supplier.name')
+    product_detail = serializers.CharField(source='product.name')
+
+    class Meta:
+        model = ProductInTransactionDetail
+        fields = [
+            'date',
+            'supplier_invoice_number',  # Valid field path
+            'supplier_name',  # Valid field path
+            'product_detail',  # Valid field path
+            'manufacturing_date',
+            'expiry_date',
+            'quantity',
+            'purchased_quantity',
+            'remaining_quantity',
+            'outward_qty',
+        ]
+
+    def get_outward_qty(self, obj):
+        outward_qty = ProductOutTransactionDetail.objects.filter(product=obj.product).aggregate(total_out=Sum('qty_requested'))['total_out']
+        return outward_qty if outward_qty else 0
+

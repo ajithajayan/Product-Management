@@ -1,11 +1,11 @@
 from django.urls import path
 from .views import (
-    InventoryListView, ProductOutTransactionListCreateView, SupplierListCreateView, SupplierDetailView,
+    BranchWiseReportView, ExpiredProductReportView, InventoryListView, InwardQtyReportView, OutwardQtyReportView, ProductDetailsReportView, ProductOutTransactionListCreateView, SupplierListCreateView, SupplierDetailView,
     CategoryListCreateView, CategoryDetailView,
     BrandListCreateView, BrandDetailView,
     ProductListCreateView, ProductDetailView, GetTotalStockView, ProductCodeSearchView,
     BranchListCreateView, BranchDetailView,
-    ProductInTransactionListCreateView, ProductInTransactionDetailView,ExpiredProductListView, RemoveExpiredProductView, RemoveDefectiveProductView, TrackedExpiredProductListView
+    ProductInTransactionListCreateView, ProductInTransactionDetailView,ExpiredProductListView, RemoveExpiredProductView, RemoveDefectiveProductView, SupplierWiseReportView, TrackedExpiredProductListView
 )
 
 urlpatterns = [
@@ -43,9 +43,21 @@ urlpatterns = [
 
     path('product-out-transactions/', ProductOutTransactionListCreateView.as_view(), name='product-out-transaction-list-create'),
 
+    # Expired Product and Defective Product API view
 
     path('expired-products/', ExpiredProductListView.as_view(), name='expired-product-list'),
     path('remove-expired-product/', RemoveExpiredProductView.as_view(), name='remove-expired-product'),
     path('remove-defective-product/', RemoveDefectiveProductView.as_view(), name='remove-defective-product'),
     path('tracked-expired-products/', TrackedExpiredProductListView.as_view(), name='tracked-expired-products'),
+
+
+    # Reports form the admin side
+
+    path('reports/inward-qty/', InwardQtyReportView.as_view(), name='inward-qty-report'),
+    path('reports/outward-qty/', OutwardQtyReportView.as_view(), name='outward-qty-report'),
+    path('reports/branch-wise/', BranchWiseReportView.as_view(), name='branch-wise-report'),
+    path('reports/expired-products/', ExpiredProductReportView.as_view(), name='expired-product-report'),
+    path('reports/supplier-wise/', SupplierWiseReportView.as_view(), name='supplier-wise-report'),
+    path('reports/product-details/', ProductDetailsReportView.as_view(), name='product-details-report'),
+
 ]

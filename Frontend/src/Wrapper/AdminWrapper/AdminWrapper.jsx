@@ -20,6 +20,7 @@ import StockOutTransactionForm from "../../components/Transaction Out/Transactio
 import TransactionOutForm from "../../components/Transaction Out/TransactionOutForm";
 import DefectiveProductForm from "../../components/Defective-Expiry/DefectiveProductForm";
 import ExpiredProductList from "../../components/Defective-Expiry/ExpiredProductList";
+import ReportPage from "../../components/Reports/ReportPage";
 
 
 function AdminWrapper() {
@@ -50,8 +51,8 @@ function AdminWrapper() {
         { path: "/Branch-Orders", element: <TransactionOutForm /> },
         { path: "/Defectives", element: <DefectiveProductForm /> },
         { path: "/expired-products", element: <ExpiredProductList /> },
+        { path: "/Reports", element: <ReportPage /> },
         
-
 
       ],
     },
