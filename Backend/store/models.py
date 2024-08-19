@@ -118,11 +118,12 @@ class ProductInTransactionDetail(models.Model):
 
 # TotalStock Model
 class TotalStock(models.Model):
-    product = models.OneToOneField(Product, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
     total_quantity = models.PositiveIntegerField(default=0)
+    remaining_quantity = models.PositiveIntegerField(default=0)  # Add this line
 
     def __str__(self):
-        return f"{self.product.name}: {self.total_quantity} units"
+        return f"{self.product.name} - {self.remaining_quantity} remaining"
 
 
 # Branch model

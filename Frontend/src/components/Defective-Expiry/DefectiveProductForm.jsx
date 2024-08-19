@@ -31,20 +31,53 @@ const DefectiveProductForm = () => {
 
   const handleProductChange = async (selectedOption) => {
     if (selectedOption) {
-      const response = await axios.get(`${baseUrl}store/inventory/?search=${selectedOption.label}`);
-      const product = response.data.results[0];
+      try {
+        const response = await axios.get(`${baseUrl}store/inventory/?search=${selectedOption.label}`);
+        const inventoryItems = response.data.results;
 
-      setProductDetails({
-        ...productDetails,
-        id: selectedOption.value,
-        productCode: product.product_code,
-        brandName: product.brand_name,
-        categoryName: product.category_name,
-        supplierName: product.supplier_name,
-        manufacturingDate: product.manufacturing_date,
-        expiryDate: product.expiry_date,
-        availableQuantity: product.remaining_quantity,
-      });
+        if (inventoryItems.length > 0) {
+          let totalAvailableQuantity = 0;
+
+          inventoryItems.forEach(item => {
+            if (item.product_id === selectedOption.value) {
+              totalAvailableQuantity += item.remaining_quantity;
+            }
+          });
+
+          const firstItem = inventoryItems.find(item => item.product_id === selectedOption.value);
+
+          if (firstItem) {
+            setProductDetails({
+              id: selectedOption.value,
+              productCode: firstItem.product_code,
+              brandName: firstItem.brand_name,
+              categoryName: firstItem.category_name,
+              supplierName: firstItem.supplier_name,
+              manufacturingDate: firstItem.manufacturing_date,
+              expiryDate: firstItem.expiry_date,
+              availableQuantity: totalAvailableQuantity,
+            });
+          } else {
+            console.error("Matching inventory not found for the selected product.");
+            setProductDetails((prevState) => ({
+              ...prevState,
+              availableQuantity: 0,
+            }));
+          }
+        } else {
+          console.error("No inventory found for the selected product.");
+          setProductDetails((prevState) => ({
+            ...prevState,
+            availableQuantity: 0,
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching inventory data:", error);
+        setProductDetails((prevState) => ({
+          ...prevState,
+          availableQuantity: 0,
+        }));
+      }
     }
   };
 
@@ -180,12 +213,6 @@ const DefectiveProductForm = () => {
         </div>
       </div>
       <div className="mt-8 flex justify-between space-x-4">
-        {/* <button
-          className="bg-gray-500 text-white py-2 px-6 rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 transition ease-in-out duration-200"
-          onClick={() => setProductDetails({ id: null, qty_defective: 0, remarks: "" })}
-        >
-          Cancel
-        </button> */}
         <button
           className="bg-blue-500 text-white py-2 px-6 rounded-lg shadow-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition ease-in-out duration-200"
           onClick={handleSubmitDefective}

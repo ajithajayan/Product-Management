@@ -78,7 +78,7 @@ class ProductInTransactionDetailSerializer(serializers.ModelSerializer):
         validated_data['purchased_quantity'] = validated_data['quantity']
         validated_data['remaining_quantity'] = validated_data['quantity']
         return super().create(validated_data)
-    
+         
 
 # Product In Transaction Serializer
 class ProductInTransactionSerializer(serializers.ModelSerializer):
@@ -91,28 +91,36 @@ class ProductInTransactionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         details_data = validated_data.pop('transaction_details')
         transaction = ProductInTransaction.objects.create(**validated_data)
-        
+
         for detail_data in details_data:
             # Check if a similar product with the same manufacturing and expiry date exists
             existing_detail = ProductInTransactionDetail.objects.filter(
-                transaction=transaction,
                 product=detail_data['product'],
                 manufacturing_date=detail_data['manufacturing_date'],
-                expiry_date=detail_data['expiry_date']
+                expiry_date=detail_data['expiry_date'],
+                transaction__supplier=transaction.supplier  # Match the supplier as well
             ).first()
 
             if existing_detail:
-                # Update the existing detail's quantity and total
+                # Update the existing detail's purchased_quantity and total
                 existing_detail.quantity += detail_data['quantity']
                 existing_detail.total += detail_data['total']
+                existing_detail.purchased_quantity += detail_data['quantity']
+                existing_detail.remaining_quantity += detail_data['quantity']  # Update remaining_quantity
                 existing_detail.save()
             else:
                 # Create a new detail entry
-                ProductInTransactionDetail.objects.create(transaction=transaction, **detail_data)
+                ProductInTransactionDetail.objects.create(
+                    transaction=transaction,
+                    purchased_quantity=detail_data['quantity'],
+                    remaining_quantity=detail_data['quantity'],  # Set remaining_quantity
+                    **detail_data
+                )
 
             # Update total stock for each product in the transaction
             product_total_stock, created = TotalStock.objects.get_or_create(product=detail_data['product'])
             product_total_stock.total_quantity += detail_data['quantity']
+            product_total_stock.remaining_quantity += detail_data['quantity']  # Update remaining_quantity in TotalStock
             product_total_stock.save()
 
         return transaction
@@ -137,6 +145,7 @@ class ProductInTransactionSerializer(serializers.ModelSerializer):
                 detail_instance.expiry_date = detail_data.get('expiry_date', detail_instance.expiry_date)
                 detail_instance.quantity = detail_data.get('quantity', detail_instance.quantity)
                 detail_instance.total = detail_data.get('total', detail_instance.total)
+                detail_instance.remaining_quantity += detail_data['quantity']  # Update remaining_quantity
                 detail_instance.save()
             else:
                 # Check if a similar product with the same manufacturing and expiry date exists
@@ -151,17 +160,27 @@ class ProductInTransactionSerializer(serializers.ModelSerializer):
                     # Update the existing detail's quantity and total
                     existing_detail.quantity += detail_data['quantity']
                     existing_detail.total += detail_data['total']
+                    existing_detail.remaining_quantity += detail_data['quantity']  # Update remaining_quantity
                     existing_detail.save()
                 else:
                     # Create a new detail entry
-                    ProductInTransactionDetail.objects.create(transaction=instance, **detail_data)
+                    ProductInTransactionDetail.objects.create(
+                        transaction=instance,
+                        purchased_quantity=detail_data['quantity'],
+                        remaining_quantity=detail_data['quantity'],  # Set remaining_quantity
+                        **detail_data
+                    )
 
                 # Update stock for the new details
                 product_total_stock, created = TotalStock.objects.get_or_create(product=detail_data['product'])
                 product_total_stock.total_quantity += detail_data['quantity']
+                product_total_stock.remaining_quantity += detail_data['quantity']  # Update remaining_quantity in TotalStock
                 product_total_stock.save()
 
         return instance
+
+
+
 
 
 # Inventory Serializer

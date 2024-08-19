@@ -27,35 +27,70 @@ const ProductOutModal = ({ setShowModal, addProduct }) => {
 
   const handleProductChange = async (selectedOption) => {
     if (selectedOption) {
-        // Fetch inventory details for the selected product
-        const response = await axios.get(`${baseUrl}store/inventory/?search=${selectedOption.label}`);
-        const inventory = response.data.results[0]; // Assuming the first result is the correct one
+        try {
+            // Fetch inventory details for the selected product
+            const response = await axios.get(`${baseUrl}store/inventory/?search=${selectedOption.label}`);
+            const inventoryItems = response.data.results;
 
-        if (inventory) {
-          setProductDetails({
-              ...productDetails,
-              id: selectedOption.value,  // Ensure the product ID is included
-              productCode: inventory.product_code,
-              name: inventory.name,
-              brandName: inventory.brand_name,
-              categoryName: inventory.category_name,
-              barcode: inventory.barcode,
-              manufacturingDate: inventory.manufacturing_date,
-              expiryDate: inventory.expiry_date,
-              availableQuantity: inventory.remaining_quantity,
-          });
-        } else {
-          console.error("Inventory not found for the selected product.");
+            if (inventoryItems.length > 0) {
+                // Filter and aggregate quantities for matching product IDs
+                let totalAvailableQuantity = 0;
+
+                inventoryItems.forEach(item => {
+                    if (item.product_id === selectedOption.value) {
+                        totalAvailableQuantity += item.remaining_quantity;
+                    }
+                });
+
+                // Use the first matching item for other details
+                const firstItem = inventoryItems.find(item => item.product_id === selectedOption.value);
+
+                if (firstItem) {
+                    // Log the available quantity and product ID for debugging
+                    console.log("Available Quantity:", totalAvailableQuantity);
+                    console.log("Product ID:", selectedOption.value);
+
+                    setProductDetails({
+                        id: selectedOption.value,
+                        productCode: firstItem.product_code,
+                        name: firstItem.name,
+                        brandName: firstItem.brand_name,
+                        categoryName: firstItem.category_name,
+                        barcode: firstItem.barcode,
+                        manufacturingDate: firstItem.manufacturing_date,
+                        expiryDate: firstItem.expiry_date,
+                        availableQuantity: totalAvailableQuantity,
+                    });
+                } else {
+                    console.error("Matching inventory not found for the selected product.");
+                    setProductDetails((prevState) => ({
+                        ...prevState,
+                        availableQuantity: 0, // Reset available quantity if no matching inventory found
+                    }));
+                }
+            } else {
+                console.error("No inventory found for the selected product.");
+                setProductDetails((prevState) => ({
+                    ...prevState,
+                    availableQuantity: 0, // Reset available quantity if no inventory found
+                }));
+            }
+        } catch (error) {
+            console.error("Error fetching inventory data:", error);
+            setProductDetails((prevState) => ({
+                ...prevState,
+                availableQuantity: 0, // Reset available quantity on error
+            }));
         }
     }
-  };
+};
+
 
   const handleSaveProduct = () => {
     if (productDetails.qty_requested > productDetails.availableQuantity) {
       alert("Requested quantity exceeds available stock.");
       return;
     }
-    console.log("Product details being added:", productDetails); // Log product details
     addProduct(productDetails);
     setShowModal(false);
   };
